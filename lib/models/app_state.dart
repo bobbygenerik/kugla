@@ -254,14 +254,17 @@ class AppSnapshot {
     final totalDistance = sessions.fold<double>(
       0,
       (sum, session) =>
-          sum + session.rounds.fold(0, (inner, round) => inner + round.distanceKm),
+          sum +
+          session.rounds.fold(0, (inner, round) => inner + round.distanceKm),
     );
     return totalDistance / totalRounds.toDouble();
   }
 
   int get bestSessionScore => sessions.isEmpty
       ? 0
-      : sessions.map((session) => session.totalScore).reduce((a, b) => a > b ? a : b);
+      : sessions
+          .map((session) => session.totalScore)
+          .reduce((a, b) => a > b ? a : b);
 
   double get closestGuessKm {
     if (sessions.isEmpty || totalRounds == 0) return 0;
@@ -271,11 +274,15 @@ class AppSnapshot {
         .reduce((a, b) => a < b ? a : b);
   }
 
-  int get exploredCountries =>
-      sessions.expand((session) => session.rounds).map((round) => round.country).toSet().length;
+  int get exploredCountries => sessions
+      .expand((session) => session.rounds)
+      .map((round) => round.country)
+      .toSet()
+      .length;
 
-  MissionSession? get latestSession =>
-      sessions.isEmpty ? null : sessions.reduce((a, b) => a.completedAt.isAfter(b.completedAt) ? a : b);
+  MissionSession? get latestSession => sessions.isEmpty
+      ? null
+      : sessions.reduce((a, b) => a.completedAt.isAfter(b.completedAt) ? a : b);
 
   List<MissionSession> get recentSessions {
     final copy = [...sessions];
@@ -307,7 +314,8 @@ class AppSnapshot {
       if (date == cursor) {
         streak++;
         cursor = cursor.subtract(const Duration(days: 1));
-      } else if (date == cursor.subtract(const Duration(days: 1)) && streak == 0) {
+      } else if (date == cursor.subtract(const Duration(days: 1)) &&
+          streak == 0) {
         streak++;
         cursor = date.subtract(const Duration(days: 1));
       } else if (date != cursor) {
@@ -322,7 +330,8 @@ class AppSnapshot {
         .expand((session) => session.rounds)
         .where((round) => round.distanceKm <= 50)
         .length;
-    final eliteSessions = sessions.where((session) => session.averageScore >= 3500).length;
+    final eliteSessions =
+        sessions.where((session) => session.averageScore >= 3500).length;
 
     return [
       AchievementProgress(
@@ -382,8 +391,7 @@ double _ratio(int value, int target) {
 
 List<Map<String, dynamic>> decodeSessions(String? raw) {
   if (raw == null || raw.isEmpty) return const [];
-  return (jsonDecode(raw) as List<dynamic>)
-      .cast<Map<String, dynamic>>();
+  return (jsonDecode(raw) as List<dynamic>).cast<Map<String, dynamic>>();
 }
 
 String encodeSessions(List<MissionSession> sessions) {
@@ -392,83 +400,115 @@ String encodeSessions(List<MissionSession> sessions) {
 
 const streetViewSeeds = <LocationSeed>[
   LocationSeed(
-    id: 'golden_gate',
-    name: 'Golden Gate Bridge',
+    id: 'us_residential_grid',
+    name: 'Residential grid',
     country: 'United States',
-    latitude: 37.8199,
-    longitude: -122.4783,
-    clue: 'Coastal city with an iconic red bridge.',
+    latitude: 41.5943,
+    longitude: -93.6157,
+    clue: 'Detached homes, wide streets, and North American road geometry.',
   ),
   LocationSeed(
-    id: 'times_square',
-    name: 'Times Square',
-    country: 'United States',
-    latitude: 40.7580,
-    longitude: -73.9855,
-    clue: 'Dense billboards and Manhattan traffic.',
+    id: 'canada_suburb',
+    name: 'Suburban arterial',
+    country: 'Canada',
+    latitude: 45.4211,
+    longitude: -75.6903,
+    clue: 'A tidy northern streetscape with broad lanes and familiar road markings.',
   ),
   LocationSeed(
-    id: 'eiffel',
-    name: 'Eiffel Tower',
+    id: 'uk_row_houses',
+    name: 'Terraced street',
+    country: 'United Kingdom',
+    latitude: 53.4806,
+    longitude: -2.2426,
+    clue: 'Compact streets, older brick housing, and left-side driving.',
+  ),
+  LocationSeed(
+    id: 'france_roundabout_edge',
+    name: 'Town edge road',
     country: 'France',
-    latitude: 48.8584,
-    longitude: 2.2945,
-    clue: 'A major European monument by the Seine.',
+    latitude: 48.5730,
+    longitude: 7.7520,
+    clue: 'European lane markings and roadside design near a built-up area.',
   ),
   LocationSeed(
-    id: 'rome_colosseum',
-    name: 'Colosseum',
+    id: 'italy_neighborhood',
+    name: 'Neighborhood street',
     country: 'Italy',
-    latitude: 41.8902,
-    longitude: 12.4922,
-    clue: 'Ancient stone arena in southern Europe.',
+    latitude: 45.4640,
+    longitude: 9.1895,
+    clue: 'Tight streets, close-set buildings, and southern European urban density.',
   ),
   LocationSeed(
-    id: 'tokyo_crossing',
-    name: 'Shibuya Crossing',
+    id: 'spain_mixed_block',
+    name: 'Mixed-use block',
+    country: 'Spain',
+    latitude: 39.4702,
+    longitude: -0.3768,
+    clue: 'Warm-weather city blocks with balconies, signage, and narrower streets.',
+  ),
+  LocationSeed(
+    id: 'japan_side_street',
+    name: 'Side street',
     country: 'Japan',
-    latitude: 35.6595,
-    longitude: 139.7005,
-    clue: 'A neon-heavy crossing in a dense Japanese city.',
+    latitude: 35.6899,
+    longitude: 139.7006,
+    clue: 'Dense East Asian streets with compact buildings and frequent overhead wiring.',
   ),
   LocationSeed(
-    id: 'sydney_opera',
-    name: 'Sydney Opera House',
+    id: 'australia_local_road',
+    name: 'Local road',
     country: 'Australia',
-    latitude: -33.8568,
-    longitude: 151.2153,
-    clue: 'Harbor views and famous sail-shaped architecture.',
+    latitude: -37.8138,
+    longitude: 144.9690,
+    clue: 'Southern Hemisphere road layout with left-side driving and low-rise streets.',
   ),
   LocationSeed(
-    id: 'table_mountain',
-    name: 'Table Mountain',
-    country: 'South Africa',
-    latitude: -33.9628,
-    longitude: 18.4098,
-    clue: 'A flat-topped mountain above a southern coastal city.',
+    id: 'new_zealand_suburban',
+    name: 'Suburban street',
+    country: 'New Zealand',
+    latitude: -41.2862,
+    longitude: 174.7762,
+    clue: 'Oceanic suburb feel with left-side driving and hilly residential streets.',
   ),
   LocationSeed(
-    id: 'rio_copacabana',
-    name: 'Copacabana',
+    id: 'brazil_avenue',
+    name: 'Urban avenue',
     country: 'Brazil',
-    latitude: -22.9711,
-    longitude: -43.1822,
-    clue: 'Palm-lined beachfront in a major South American city.',
+    latitude: -23.5508,
+    longitude: -46.6333,
+    clue: 'Busy South American city fabric with Portuguese-looking signage and dense traffic.',
   ),
   LocationSeed(
-    id: 'reykjavik_harpa',
-    name: 'Harpa Concert Hall',
-    country: 'Iceland',
-    latitude: 64.1500,
-    longitude: -21.9326,
-    clue: 'A glass waterfront venue in a Nordic capital.',
-  ),
-  LocationSeed(
-    id: 'mexico_city_zocalo',
-    name: 'Zocalo',
+    id: 'mexico_neighborhood',
+    name: 'Neighborhood corner',
     country: 'Mexico',
-    latitude: 19.4326,
-    longitude: -99.1332,
-    clue: 'Historic plaza in a high-altitude Latin American capital.',
+    latitude: 20.6734,
+    longitude: -103.3442,
+    clue: 'A high-activity Latin American street with compact storefronts and utility lines.',
+  ),
+  LocationSeed(
+    id: 'south_africa_residential',
+    name: 'Residential road',
+    country: 'South Africa',
+    latitude: -26.2047,
+    longitude: 28.0462,
+    clue: 'Sunny neighborhood streets with left-side driving and a suburban layout.',
+  ),
+  LocationSeed(
+    id: 'chile_city_slope',
+    name: 'City slope',
+    country: 'Chile',
+    latitude: -33.4483,
+    longitude: -70.6693,
+    clue: 'A drier urban setting with hills, mixed low-rise buildings, and Spanish signage.',
+  ),
+  LocationSeed(
+    id: 'ireland_small_town',
+    name: 'Town road',
+    country: 'Ireland',
+    latitude: 53.3496,
+    longitude: -6.2603,
+    clue: 'Left-side driving, modest storefronts, and a damp Atlantic-town feel.',
   ),
 ];

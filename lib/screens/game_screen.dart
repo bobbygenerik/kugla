@@ -27,7 +27,9 @@ class _GameScreenState extends State<GameScreen> {
 
   late final DateTime _startedAt;
   late List<LocationSeed> _roundSeeds;
+  street_view.StreetViewController? _streetViewController;
   int _roundIndex = 0;
+  int _streetViewGeneration = 0;
   LatLng? _userGuess;
   bool _mapExpanded = false;
   bool _streetViewReady = false;
@@ -54,13 +56,15 @@ class _GameScreenState extends State<GameScreen> {
 
   void _beginRound() {
     _streetViewTimeout?.cancel();
+    _streetViewGeneration += 1;
+    _streetViewController = null;
     _userGuess = null;
     _mapExpanded = false;
     _streetViewReady = false;
     _streetViewFailed = false;
     _streetViewErrorMessage = null;
     _streetViewTimeout = Timer(const Duration(seconds: 12), () {
-      if (!mounted || _streetViewReady) return;
+      if (!mounted || _streetViewReady || _streetViewController != null) return;
       setState(() {
         _streetViewFailed = true;
         _streetViewErrorMessage =
@@ -111,8 +115,73 @@ class _GameScreenState extends State<GameScreen> {
       return;
     }
     if (location?.panoId == null) return;
+    _markStreetViewReady();
+  }
+
+  void _onStreetViewCreated(street_view.StreetViewController controller) {
+    _streetViewController = controller;
+    final generation = _streetViewGeneration;
+
+    unawaited(_configureStreetViewController(controller, generation));
+
+    // The native Street View surface can be visibly alive before the plugin
+    // emits a panorama-change callback, so don't keep the player blocked.
+    Future<void>.delayed(const Duration(milliseconds: 1200), () async {
+      if (!mounted ||
+          generation != _streetViewGeneration ||
+          _streetViewFailed) {
+        return;
+      }
+      _markStreetViewReady();
+      await _probeStreetViewLocation(generation);
+    });
+  }
+
+  Future<void> _configureStreetViewController(
+    street_view.StreetViewController controller,
+    int generation,
+  ) async {
+    try {
+      await controller.setPanningGesturesEnabled(true);
+      await controller.setZoomGesturesEnabled(true);
+      await controller.setStreetNamesEnabled(widget.settings.showStreetNames);
+      await controller.setUserNavigationEnabled(widget.settings.allowMovement);
+    } catch (_) {
+      if (!mounted || generation != _streetViewGeneration) return;
+    }
+  }
+
+  Future<void> _probeStreetViewLocation(int generation) async {
+    for (var attempt = 0; attempt < 4; attempt++) {
+      if (!mounted ||
+          generation != _streetViewGeneration ||
+          _streetViewFailed) {
+        return;
+      }
+
+      final controller = _streetViewController;
+      if (controller == null) return;
+
+      try {
+        final location = await controller.getLocation();
+        if (!mounted || generation != _streetViewGeneration) return;
+        if (location?.panoId != null) {
+          _markStreetViewReady();
+          return;
+        }
+      } catch (_) {
+        // Ignore probe failures and let the native view continue rendering.
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+    }
+  }
+
+  void _markStreetViewReady() {
     _streetViewTimeout?.cancel();
-    if (!_streetViewReady) {
+    if (!_streetViewReady ||
+        _streetViewFailed ||
+        _streetViewErrorMessage != null) {
       setState(() {
         _streetViewReady = true;
         _streetViewFailed = false;
@@ -222,7 +291,7 @@ class _GameScreenState extends State<GameScreen> {
         _results.fold<int>(0, (sum, result) => sum + result.score);
     final canOpenMap = _streetViewReady && !_streetViewFailed;
     final mapHeight = min(media.size.height * 0.56, 430.0);
-    final cluePanelWidth = min(media.size.width - 32, 520.0);
+    final cluePanelWidth = min(media.size.width - 32, 440.0);
 
     return Scaffold(
       backgroundColor: KuglaColors.deepSpace,
@@ -238,6 +307,7 @@ class _GameScreenState extends State<GameScreen> {
               initSource: street_view.StreetViewSource.def,
               streetNamesEnabled: widget.settings.showStreetNames,
               userNavigationEnabled: widget.settings.allowMovement,
+              onStreetViewCreated: _onStreetViewCreated,
               onPanoramaChangeListener: _onPanoramaChange,
             ),
           ),
@@ -375,42 +445,31 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: cluePanelWidth),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: KuglaColors.panel.withValues(alpha: 0.82),
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(color: KuglaColors.stroke),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    _HudChip(
-                                      icon: Icons.explore_rounded,
-                                      label:
-                                          'Round ${_roundIndex + 1} of ${_roundSeeds.length}',
-                                    ),
-                                    const SizedBox(width: 10),
-                                    _HudChip(
-                                      icon: Icons.map_outlined,
-                                      label: widget.settings.allowMovement
-                                          ? 'Free roam'
-                                          : 'Locked view',
-                                    ),
-                                  ],
+                                _HudChip(
+                                  icon: Icons.explore_rounded,
+                                  label:
+                                      'Round ${_roundIndex + 1} of ${_roundSeeds.length}',
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 10),
                                 Text(
                                   _currentSeed.clue,
                                   style: Theme.of(context)
                                       .textTheme
-                                      .titleLarge
+                                      .titleMedium
                                       ?.copyWith(
                                         fontWeight: FontWeight.w800,
                                         color: Colors.white,
@@ -418,12 +477,12 @@ class _GameScreenState extends State<GameScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  _streetViewReady
-                                      ? 'Study the scene, then open the map when you are ready to place your pin.'
-                                      : 'We are still waiting for the panorama to come online.',
+                                  widget.settings.allowMovement
+                                      ? 'Free roam'
+                                      : 'Locked view',
                                   style: const TextStyle(
                                     color: KuglaColors.textMuted,
-                                    height: 1.35,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
@@ -518,15 +577,15 @@ class _GameScreenState extends State<GameScreen> {
                                     onTap: canOpenMap
                                         ? () => _toggleMapExpanded(true)
                                         : null,
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(14),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(14),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const _HudChip(
+                                          _HudChip(
                                             icon: Icons.place_rounded,
                                             label: 'Map',
                                           ),
@@ -535,22 +594,10 @@ class _GameScreenState extends State<GameScreen> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                canOpenMap
-                                                    ? 'Choose on map'
-                                                    : 'Map locked',
-                                                style: const TextStyle(
+                                                'Tap to guess',
+                                                style: TextStyle(
                                                   color: Colors.white,
                                                   fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                canOpenMap
-                                                    ? 'Tap to place your pin'
-                                                    : 'Wait for Street View',
-                                                style: const TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 12,
                                                 ),
                                               ),
                                             ],
