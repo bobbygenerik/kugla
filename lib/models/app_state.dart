@@ -222,12 +222,12 @@ class AppSnapshot {
   final AppSettings settings;
   final List<MissionSession> sessions;
 
-  const AppSnapshot({
+  AppSnapshot({
     required this.settings,
     required this.sessions,
   });
 
-  const AppSnapshot.empty()
+  AppSnapshot.empty()
       : settings = const AppSettings.defaults(),
         sessions = const [];
 
@@ -243,14 +243,17 @@ class AppSnapshot {
 
   bool get hasSessions => sessions.isNotEmpty;
   int get totalSessions => sessions.length;
-  int get totalRounds =>
+  late final int totalRounds =
       sessions.fold(0, (sum, session) => sum + session.rounds.length);
-  int get totalScore =>
+
+  late final int totalScore =
       sessions.fold(0, (sum, session) => sum + session.totalScore);
-  double get averageRoundScore =>
+
+  late final double averageRoundScore =
       totalRounds == 0 ? 0 : totalScore / totalRounds.toDouble();
-  double get averageDistanceKm {
-    if (totalRounds == 0) return 0;
+
+  late final double averageDistanceKm = () {
+    if (totalRounds == 0) return 0.0;
     final totalDistance = sessions.fold<double>(
       0,
       (sum, session) =>
@@ -258,45 +261,49 @@ class AppSnapshot {
           session.rounds.fold(0, (inner, round) => inner + round.distanceKm),
     );
     return totalDistance / totalRounds.toDouble();
-  }
+  }();
 
-  int get bestSessionScore => sessions.isEmpty
-      ? 0
-      : sessions
-          .map((session) => session.totalScore)
-          .reduce((a, b) => a > b ? a : b);
+  late final int bestSessionScore = () {
+    if (sessions.isEmpty) return 0;
+    return sessions
+        .map((session) => session.totalScore)
+        .reduce((a, b) => a > b ? a : b);
+  }();
 
-  double get closestGuessKm {
-    if (sessions.isEmpty || totalRounds == 0) return 0;
+  late final double closestGuessKm = () {
+    if (sessions.isEmpty || totalRounds == 0) return 0.0;
     return sessions
         .expand((session) => session.rounds)
         .map((round) => round.distanceKm)
         .reduce((a, b) => a < b ? a : b);
-  }
+  }();
 
-  int get exploredCountries => sessions
-      .expand((session) => session.rounds)
-      .map((round) => round.country)
-      .toSet()
-      .length;
+  late final int exploredCountries = () {
+    return sessions
+        .expand((session) => session.rounds)
+        .map((round) => round.country)
+        .toSet()
+        .length;
+  }();
 
-  MissionSession? get latestSession => sessions.isEmpty
-      ? null
-      : sessions.reduce((a, b) => a.completedAt.isAfter(b.completedAt) ? a : b);
+  late final MissionSession? latestSession = () {
+    if (sessions.isEmpty) return null;
+    return sessions.reduce((a, b) => a.completedAt.isAfter(b.completedAt) ? a : b);
+  }();
 
-  List<MissionSession> get recentSessions {
+  late final List<MissionSession> recentSessions = () {
     final copy = [...sessions];
     copy.sort((a, b) => b.completedAt.compareTo(a.completedAt));
     return copy;
-  }
+  }();
 
-  List<MissionSession> get bestSessions {
+  late final List<MissionSession> bestSessions = () {
     final copy = [...sessions];
     copy.sort((a, b) => b.totalScore.compareTo(a.totalScore));
     return copy;
-  }
+  }();
 
-  int get currentStreakDays {
+  late final int currentStreakDays = () {
     if (sessions.isEmpty) return 0;
     final localDates = sessions
         .map((session) => DateTime(
@@ -323,9 +330,9 @@ class AppSnapshot {
       }
     }
     return streak;
-  }
+  }();
 
-  List<AchievementProgress> get achievements {
+  late final List<AchievementProgress> achievements = () {
     final totalPerfectishRounds = sessions
         .expand((session) => session.rounds)
         .where((round) => round.distanceKm <= 50)
@@ -380,7 +387,7 @@ class AppSnapshot {
         color: const Color(0xFF7AB6FF),
       ),
     ];
-  }
+  }();
 }
 
 double _ratio(int value, int target) {
