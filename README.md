@@ -20,6 +20,13 @@ GMS_API_KEY = YOUR_KEY
 
 These files are ignored by git so the key stays out of tracked source.
 
+Firebase platform config is also local-only:
+- `android/app/google-services.json`
+- `ios/Runner/GoogleService-Info.plist`
+- `lib/firebase_options.dart`
+
+Generate `lib/firebase_options.dart` locally with FlutterFire before building a Firebase-enabled app.
+
 ## Verification
 
 ```bash
