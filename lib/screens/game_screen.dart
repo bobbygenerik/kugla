@@ -525,74 +525,59 @@ class _GameScreenState extends State<GameScreen> {
                       child: ClipRRect(
                         borderRadius:
                             BorderRadius.circular(_mapExpanded ? 30 : 26),
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: IgnorePointer(
-                                ignoring: !_mapExpanded,
-                                child: GoogleMap(
-                                  mapType: MapType.normal,
-                                  initialCameraPosition: const CameraPosition(
-                                    target: LatLng(20, 0),
-                                    zoom: 1.2,
+                        child: !_mapExpanded
+                            ? Stack(
+                                children: [
+                                  const Positioned.fill(
+                                    child: GoogleMap(
+                                      mapType: MapType.normal,
+                                      initialCameraPosition: CameraPosition(
+                                        target: LatLng(20, 0),
+                                        zoom: 1.2,
+                                      ),
+                                      zoomControlsEnabled: false,
+                                      myLocationButtonEnabled: false,
+                                      compassEnabled: false,
+                                      mapToolbarEnabled: false,
+                                    ),
                                   ),
-                                  onTap: (pos) =>
-                                      setState(() => _userGuess = pos),
-                                  markers: _userGuess == null
-                                      ? {}
-                                      : {
-                                          Marker(
-                                            markerId: const MarkerId('guess'),
-                                            position: _userGuess!,
+                                  Positioned.fill(
+                                    child: IgnorePointer(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.black
+                                                  .withValues(alpha: 0.10),
+                                              Colors.black
+                                                  .withValues(alpha: 0.52),
+                                            ],
                                           ),
-                                        },
-                                  zoomControlsEnabled: false,
-                                  myLocationButtonEnabled: false,
-                                  compassEnabled: false,
-                                  mapToolbarEnabled: false,
-                                ),
-                              ),
-                            ),
-                            Positioned.fill(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black.withValues(
-                                          alpha: _mapExpanded ? 0.12 : 0.10),
-                                      Colors.black.withValues(
-                                          alpha: _mapExpanded ? 0.22 : 0.52),
-                                    ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
-                            if (!_mapExpanded)
-                              Positioned.fill(
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: canOpenMap
-                                        ? () => _toggleMapExpanded(true)
-                                        : null,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(14),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          _HudChip(
-                                            icon: Icons.place_rounded,
-                                            label: 'Map',
-                                          ),
-                                          Column(
+                                  Positioned.fill(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: canOpenMap
+                                            ? () => _toggleMapExpanded(true)
+                                            : null,
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(14),
+                                          child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
+                                              _HudChip(
+                                                icon: Icons.place_rounded,
+                                                label: 'Map',
+                                              ),
                                               Text(
                                                 'Tap to guess',
                                                 style: TextStyle(
@@ -602,14 +587,13 @@ class _GameScreenState extends State<GameScreen> {
                                               ),
                                             ],
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
+                                ],
                               )
-                            else
-                              Padding(
+                            : Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,13 +612,43 @@ class _GameScreenState extends State<GameScreen> {
                                         ),
                                       ],
                                     ),
-                                    const Spacer(),
+                                    const SizedBox(height: 14),
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(24),
+                                        child: GoogleMap(
+                                          mapType: MapType.normal,
+                                          initialCameraPosition:
+                                              const CameraPosition(
+                                            target: LatLng(20, 0),
+                                            zoom: 1.2,
+                                          ),
+                                          onTap: (pos) =>
+                                              setState(() => _userGuess = pos),
+                                          markers: _userGuess == null
+                                              ? {}
+                                              : {
+                                                  Marker(
+                                                    markerId:
+                                                        const MarkerId('guess'),
+                                                    position: _userGuess!,
+                                                  ),
+                                                },
+                                          zoomControlsEnabled: false,
+                                          myLocationButtonEnabled: false,
+                                          compassEnabled: false,
+                                          mapToolbarEnabled: false,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
                                     DecoratedBox(
                                       decoration: BoxDecoration(
                                         color: const Color(0xCC08111F),
                                         borderRadius: BorderRadius.circular(22),
                                         border: Border.all(
-                                            color: KuglaColors.stroke),
+                                          color: KuglaColors.stroke,
+                                        ),
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.all(16),
@@ -657,10 +671,11 @@ class _GameScreenState extends State<GameScreen> {
                                                 Expanded(
                                                   child: OutlinedButton.icon(
                                                     onPressed: () => setState(
-                                                        () =>
-                                                            _userGuess = null),
-                                                    icon: const Icon(Icons
-                                                        .restart_alt_rounded),
+                                                      () => _userGuess = null,
+                                                    ),
+                                                    icon: const Icon(
+                                                      Icons.restart_alt_rounded,
+                                                    ),
                                                     label:
                                                         const Text('Clear pin'),
                                                   ),
@@ -672,10 +687,13 @@ class _GameScreenState extends State<GameScreen> {
                                                         _userGuess != null
                                                             ? _onGuessPressed
                                                             : null,
-                                                    icon: const Icon(Icons
-                                                        .check_circle_rounded),
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .check_circle_rounded,
+                                                    ),
                                                     label: const Text(
-                                                        'Lock guess'),
+                                                      'Lock guess',
+                                                    ),
                                                   ),
                                                 ),
                                               ],
@@ -687,8 +705,6 @@ class _GameScreenState extends State<GameScreen> {
                                   ],
                                 ),
                               ),
-                          ],
-                        ),
                       ),
                     ),
                   ),
