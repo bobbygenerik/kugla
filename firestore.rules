@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.userId == userId;
+    }
+
+    match /groups/{familyCode}/members/{userId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.familyCode == familyCode
+        && request.resource.data.userId == userId;
+    }
+
+    match /groups/{familyCode}/missions/{missionId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.familyCode == familyCode
+        && request.resource.data.userId is string;
+    }
+  }
+}

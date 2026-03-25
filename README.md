@@ -1,17 +1,28 @@
-# kugla
+# Kugla
 
-A new Flutter project.
+Kugla is a GeoGuessr-style Flutter MVP with a custom Stitch-inspired interface,
+Google Maps, and Google Street View gameplay.
 
-## Getting Started
+## Maps Setup
 
-This project is a starting point for a Flutter application.
+The app expects a Google Maps API key for both Android and iOS.
 
-A few resources to get you started if this is your first Flutter project:
+Android:
+- Add `googleMapsApiKey=YOUR_KEY` to `android/local.properties`
+- Or export `GOOGLE_MAPS_API_KEY` before building
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+iOS:
+- Create `ios/Flutter/Secrets.xcconfig` with:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```xcconfig
+GMS_API_KEY = YOUR_KEY
+```
+
+These files are ignored by git so the key stays out of tracked source.
+
+## Verification
+
+```bash
+flutter analyze
+flutter test
+```

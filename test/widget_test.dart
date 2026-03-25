@@ -6,15 +6,19 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:kugla/main.dart';
+import 'package:kugla/app/app_shell.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('app shell renders landing UI', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const KuglaApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify that our app name 'Kugla' is present.
-    expect(find.text('Kugla'), findsOneWidget);
+    expect(find.text('Mission Briefing'), findsNothing);
+    expect(find.textContaining('Play real missions.'), findsOneWidget);
   });
 }
