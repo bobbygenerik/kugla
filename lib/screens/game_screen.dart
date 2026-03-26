@@ -494,6 +494,7 @@ class _GameScreenState extends State<GameScreen> {
                           _HudIconButton(
                             icon: Icons.arrow_back_rounded,
                             onPressed: () => Navigator.of(context).pop(),
+                            tooltip: 'Leave mission',
                           ),
                           const Spacer(),
                           if (widget.gameMode == GameMode.dailyPulse) ...[
@@ -702,6 +703,7 @@ class _GameScreenState extends State<GameScreen> {
                                           icon: Icons.close_rounded,
                                           onPressed: () =>
                                               _toggleMapExpanded(false),
+                                          tooltip: 'Close map',
                                         ),
                                       ],
                                     ),
@@ -1259,10 +1261,12 @@ class _HudChip extends StatelessWidget {
 class _HudIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
+  final String? tooltip;
 
   const _HudIconButton({
     required this.icon,
     required this.onPressed,
+    this.tooltip,
   });
 
   @override
@@ -1276,6 +1280,7 @@ class _HudIconButton extends StatelessWidget {
       child: IconButton(
         onPressed: onPressed,
         icon: Icon(icon, color: Colors.white),
+        tooltip: tooltip,
       ),
     );
   }
