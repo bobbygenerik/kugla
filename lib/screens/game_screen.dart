@@ -308,6 +308,7 @@ class _GameScreenState extends State<GameScreen> {
       },
       pageBuilder: (context, _, __) => _RoundResultOverlay(
         result: result,
+        city: _currentSeed.city,
         roundIndex: _roundIndex,
         totalRounds: _roundSeeds.length,
         gameMode: widget.gameMode,
@@ -812,6 +813,7 @@ class _GameScreenState extends State<GameScreen> {
 
 class _RoundResultOverlay extends StatefulWidget {
   final RoundResult result;
+  final String city;
   final int roundIndex;
   final int totalRounds;
   final GameMode gameMode;
@@ -820,6 +822,7 @@ class _RoundResultOverlay extends StatefulWidget {
 
   const _RoundResultOverlay({
     required this.result,
+    required this.city,
     required this.roundIndex,
     required this.totalRounds,
     required this.gameMode,
@@ -900,7 +903,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                   ),
                 ],
               ),
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1043,6 +1046,104 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                       ),
                     ],
                     const SizedBox(height: 22),
+                    // Mini map showing target and guess
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: SizedBox(
+                        height: 180,
+                        child: GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: LatLng(
+                              (widget.result.targetLatitude +
+                                      widget.result.guessLatitude) /
+                                  2,
+                              (widget.result.targetLongitude +
+                                      widget.result.guessLongitude) /
+                                  2,
+                            ),
+                            zoom: 2,
+                          ),
+                          onMapCreated: (controller) {
+                            final target = LatLng(
+                              widget.result.targetLatitude,
+                              widget.result.targetLongitude,
+                            );
+                            final guess = LatLng(
+                              widget.result.guessLatitude,
+                              widget.result.guessLongitude,
+                            );
+                            final bounds = LatLngBounds(
+                              southwest: LatLng(
+                                target.latitude < guess.latitude
+                                    ? target.latitude
+                                    : guess.latitude,
+                                target.longitude < guess.longitude
+                                    ? target.longitude
+                                    : guess.longitude,
+                              ),
+                              northeast: LatLng(
+                                target.latitude > guess.latitude
+                                    ? target.latitude
+                                    : guess.latitude,
+                                target.longitude > guess.longitude
+                                    ? target.longitude
+                                    : guess.longitude,
+                              ),
+                            );
+                            controller.animateCamera(
+                              CameraUpdate.newLatLngBounds(bounds, 48),
+                            );
+                          },
+                          markers: {
+                            Marker(
+                              markerId: const MarkerId('target'),
+                              position: LatLng(
+                                widget.result.targetLatitude,
+                                widget.result.targetLongitude,
+                              ),
+                              icon: BitmapDescriptor.defaultMarkerWithHue(
+                                BitmapDescriptor.hueGreen,
+                              ),
+                            ),
+                            Marker(
+                              markerId: const MarkerId('guess'),
+                              position: LatLng(
+                                widget.result.guessLatitude,
+                                widget.result.guessLongitude,
+                              ),
+                              icon: BitmapDescriptor.defaultMarkerWithHue(
+                                BitmapDescriptor.hueRed,
+                              ),
+                            ),
+                          },
+                          polylines: {
+                            Polyline(
+                              polylineId: const PolylineId('line'),
+                              points: [
+                                LatLng(
+                                  widget.result.targetLatitude,
+                                  widget.result.targetLongitude,
+                                ),
+                                LatLng(
+                                  widget.result.guessLatitude,
+                                  widget.result.guessLongitude,
+                                ),
+                              ],
+                              color: accent,
+                              width: 2,
+                            ),
+                          },
+                          myLocationButtonEnabled: false,
+                          zoomControlsEnabled: false,
+                          scrollGesturesEnabled: false,
+                          zoomGesturesEnabled: false,
+                          rotateGesturesEnabled: false,
+                          tiltGesturesEnabled: false,
+                          mapToolbarEnabled: false,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -1062,7 +1163,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            widget.result.country,
+                            '${widget.city}, ${widget.result.country}',
                             style: const TextStyle(
                                 color: KuglaColors.textMuted),
                           ),
