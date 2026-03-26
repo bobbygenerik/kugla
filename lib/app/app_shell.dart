@@ -50,23 +50,28 @@ class _AppShellState extends State<AppShell> {
   Future<void> _load() async {
     await _remote.initialize();
     final snapshot = await _store.load();
+    final firstLaunch = !await _store.hasSeenOnboarding();
     if (_remote.isEnabled) {
       await _remote.syncProfile(settings: snapshot.settings, snapshot: snapshot);
     }
     if (!mounted) return;
     setState(() => _snapshot = snapshot);
+    if (firstLaunch) {
+      await _store.markOnboardingSeen();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openOnboarding());
+    }
   }
 
   void _setIndex(int index) {
     setState(() => _selectedIndex = index);
   }
 
-  Future<void> _openGame() async {
+  Future<void> _openGame(GameMode mode) async {
     final snapshot = _snapshot;
     if (snapshot == null) return;
     final session = await Navigator.of(context).push<MissionSession>(
       MaterialPageRoute<MissionSession>(
-        builder: (_) => GameScreen(settings: snapshot.settings),
+        builder: (_) => GameScreen(settings: snapshot.settings, gameMode: mode),
       ),
     );
     if (!mounted || session == null) return;
@@ -81,7 +86,7 @@ class _AppShellState extends State<AppShell> {
     if (!mounted) return;
     setState(() {
       _snapshot = updated;
-      _selectedIndex = 1;
+      _selectedIndex = 2;
     });
   }
 
@@ -94,22 +99,16 @@ class _AppShellState extends State<AppShell> {
   Future<void> _openProfile() async {
     final snapshot = _snapshot;
     if (snapshot == null) return;
-    final settings = await Navigator.of(context).push<AppSettings>(
-      MaterialPageRoute<AppSettings>(
+    final updated = await Navigator.of(context).push<AppSnapshot>(
+      MaterialPageRoute<AppSnapshot>(
         builder: (_) => ProfileSettingsScreen(
           snapshot: snapshot,
-          onSave: (next) async => _store.saveSettings(snapshot, next),
+          onSave: (next) => _store.saveSettings(snapshot, next),
         ),
       ),
     );
-    if (!mounted || settings == null) return;
-    final updated = snapshot.copyWith(settings: settings);
-    if (_remote.isEnabled) {
-      await _remote.syncProfile(settings: settings, snapshot: updated);
-    }
-    setState(() {
-      _snapshot = updated;
-    });
+    if (!mounted || updated == null) return;
+    setState(() => _snapshot = updated);
   }
 
   @override
@@ -128,8 +127,6 @@ class _AppShellState extends State<AppShell> {
           snapshot: snapshot,
           onStartMission: _openGame,
           onOpenVault: () => _setIndex(3),
-          onOpenOnboarding: _openOnboarding,
-          onOpenRecords: () => _setIndex(1),
         ),
       ),
       _ShellDestination(

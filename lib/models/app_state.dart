@@ -64,6 +64,9 @@ class RemoteLeaderboardEntry {
   final String displayName;
   final String familyCode;
   final int bestSessionScore;
+  final int bestDailyPulseScore;
+  final int bestWorldAtlasScore;
+  final int bestLandmarkLockScore;
   final int totalScore;
   final int missionsPlayed;
   final int roundsPlayed;
@@ -75,12 +78,22 @@ class RemoteLeaderboardEntry {
     required this.displayName,
     required this.familyCode,
     required this.bestSessionScore,
+    this.bestDailyPulseScore = 0,
+    this.bestWorldAtlasScore = 0,
+    this.bestLandmarkLockScore = 0,
     required this.totalScore,
     required this.missionsPlayed,
     required this.roundsPlayed,
     required this.averageRoundScore,
     required this.updatedAt,
   });
+
+  int bestScoreForMode(GameMode? mode) => switch (mode) {
+        GameMode.dailyPulse => bestDailyPulseScore,
+        GameMode.worldAtlas => bestWorldAtlasScore,
+        GameMode.landmarkLock => bestLandmarkLockScore,
+        null => bestSessionScore,
+      };
 }
 
 class LocationSeed {
@@ -160,12 +173,14 @@ class MissionSession {
   final DateTime startedAt;
   final DateTime completedAt;
   final List<RoundResult> rounds;
+  final GameMode gameMode;
 
   const MissionSession({
     required this.id,
     required this.startedAt,
     required this.completedAt,
     required this.rounds,
+    this.gameMode = GameMode.worldAtlas,
   });
 
   int get totalScore => rounds.fold(0, (sum, round) => sum + round.score);
@@ -184,6 +199,7 @@ class MissionSession {
         'startedAt': startedAt.toIso8601String(),
         'completedAt': completedAt.toIso8601String(),
         'rounds': rounds.map((round) => round.toJson()).toList(),
+        'gameMode': gameMode.name,
       };
 
   factory MissionSession.fromJson(Map<String, dynamic> json) {
@@ -194,6 +210,10 @@ class MissionSession {
       rounds: (json['rounds'] as List<dynamic>)
           .map((item) => RoundResult.fromJson(item as Map<String, dynamic>))
           .toList(),
+      gameMode: GameMode.values.firstWhere(
+        (e) => e.name == (json['gameMode'] as String?),
+        orElse: () => GameMode.worldAtlas,
+      ),
     );
   }
 }
@@ -265,6 +285,15 @@ class AppSnapshot {
       : sessions
           .map((session) => session.totalScore)
           .reduce((a, b) => a > b ? a : b);
+
+  int bestSessionScoreForMode(GameMode mode) {
+    final modeSessions =
+        sessions.where((s) => s.gameMode == mode).toList();
+    if (modeSessions.isEmpty) return 0;
+    return modeSessions
+        .map((s) => s.totalScore)
+        .reduce((a, b) => a > b ? a : b);
+  }
 
   double get closestGuessKm {
     if (sessions.isEmpty || totalRounds == 0) return 0;
@@ -397,6 +426,75 @@ List<Map<String, dynamic>> decodeSessions(String? raw) {
 String encodeSessions(List<MissionSession> sessions) {
   return jsonEncode(sessions.map((session) => session.toJson()).toList());
 }
+
+enum GameMode { dailyPulse, worldAtlas, landmarkLock }
+
+const landmarkSeeds = <LocationSeed>[
+  LocationSeed(
+    id: 'eiffel_tower',
+    name: 'Eiffel Tower',
+    country: 'France',
+    latitude: 48.8584,
+    longitude: 2.2945,
+    clue: 'An iron lattice tower on the Champ de Mars, overlooking a European capital on the Seine.',
+  ),
+  LocationSeed(
+    id: 'colosseum',
+    name: 'Colosseum',
+    country: 'Italy',
+    latitude: 41.8902,
+    longitude: 12.4922,
+    clue: 'An ancient oval amphitheatre of volcanic stone in the heart of an imperial city.',
+  ),
+  LocationSeed(
+    id: 'taj_mahal',
+    name: 'Taj Mahal',
+    country: 'India',
+    latitude: 27.1751,
+    longitude: 78.0421,
+    clue: 'A white marble mausoleum on a river in northern India, flanked by four minarets.',
+  ),
+  LocationSeed(
+    id: 'sydney_opera_house',
+    name: 'Sydney Opera House',
+    country: 'Australia',
+    latitude: -33.8568,
+    longitude: 151.2153,
+    clue: 'Shell-shaped roof forms on a harbour peninsula in a major southern-hemisphere city.',
+  ),
+  LocationSeed(
+    id: 'sagrada_familia',
+    name: 'Sagrada Família',
+    country: 'Spain',
+    latitude: 41.4036,
+    longitude: 2.1744,
+    clue: 'An unfinished Gothic-Art Nouveau basilica with towering organic spires in a Mediterranean port city.',
+  ),
+  LocationSeed(
+    id: 'statue_of_liberty',
+    name: 'Statue of Liberty',
+    country: 'United States',
+    latitude: 40.6892,
+    longitude: -74.0445,
+    clue: 'A neoclassical copper statue on a small island in a harbour at the mouth of a major estuary.',
+  ),
+  LocationSeed(
+    id: 'golden_gate_bridge',
+    name: 'Golden Gate Bridge',
+    country: 'United States',
+    latitude: 37.8199,
+    longitude: -122.4783,
+    clue: 'An International Orange suspension bridge spanning the entrance to a Pacific coast bay.',
+  ),
+  LocationSeed(
+    id: 'big_ben',
+    name: 'Palace of Westminster',
+    country: 'United Kingdom',
+    latitude: 51.5007,
+    longitude: -0.1246,
+    clue: 'A Gothic Revival parliament complex beside a tidal river in the capital of a northern island nation.',
+  ),
+];
 
 const streetViewSeeds = <LocationSeed>[
   LocationSeed(

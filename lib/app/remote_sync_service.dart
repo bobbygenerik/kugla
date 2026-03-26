@@ -69,6 +69,9 @@ class RemoteSyncService {
             displayName: data['displayName'] as String? ?? 'Unknown',
             familyCode: data['familyCode'] as String? ?? '',
             bestSessionScore: data['bestSessionScore'] as int? ?? 0,
+            bestDailyPulseScore: data['bestDailyPulseScore'] as int? ?? 0,
+            bestWorldAtlasScore: data['bestWorldAtlasScore'] as int? ?? 0,
+            bestLandmarkLockScore: data['bestLandmarkLockScore'] as int? ?? 0,
             totalScore: data['totalScore'] as int? ?? 0,
             missionsPlayed: data['missionsPlayed'] as int? ?? 0,
             roundsPlayed: data['roundsPlayed'] as int? ?? 0,
@@ -95,6 +98,12 @@ class RemoteSyncService {
       'displayName': trimmedName,
       'familyCode': normalizedCode,
       'bestSessionScore': snapshot.bestSessionScore,
+      'bestDailyPulseScore':
+          snapshot.bestSessionScoreForMode(GameMode.dailyPulse),
+      'bestWorldAtlasScore':
+          snapshot.bestSessionScoreForMode(GameMode.worldAtlas),
+      'bestLandmarkLockScore':
+          snapshot.bestSessionScoreForMode(GameMode.landmarkLock),
       'totalScore': snapshot.totalScore,
       'missionsPlayed': snapshot.totalSessions,
       'roundsPlayed': snapshot.totalRounds,

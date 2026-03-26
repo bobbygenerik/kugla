@@ -28,10 +28,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       icon: Icons.radar_rounded,
     ),
     (
-      title: 'Squad up for relay missions',
+      title: 'Unlock the Star Vault',
       body:
-          'Friends can challenge, spectate, and compare replays across your vault unlocks.',
-      icon: Icons.groups_rounded,
+          'Complete missions to earn achievements and track your progress across every route you explore.',
+      icon: Icons.auto_awesome_mosaic_rounded,
     ),
   ];
 
@@ -150,10 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                       runSpacing: 10,
                                       alignment: WrapAlignment.center,
                                       children: [
-                                        Chip(
-                                            label: Text(
-                                                'Street View expeditions')),
-                                        Chip(label: Text('Squad challenges')),
+                                        Chip(label: Text('Street View expeditions')),
                                         Chip(label: Text('Vault progression')),
                                       ],
                                     ),

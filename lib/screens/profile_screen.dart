@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
 import '../models/app_state.dart';
 import '../widgets/mission_widgets.dart';
 
@@ -47,12 +48,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     final updated = await widget.onSave(nextSettings);
     if (!mounted) return;
     setState(() => _saving = false);
-    Navigator.of(context).pop(updated.settings);
+    Navigator.of(context).pop(updated);
   }
 
   @override
   Widget build(BuildContext context) {
     final snapshot = widget.snapshot;
+    final name = _settings.displayName.trim();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile & Settings'),
@@ -75,11 +77,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF61E6E8), Color(0xFFB6A9FF)],
+                      colors: [KuglaColors.cyan, KuglaColors.lilac],
                     ),
                   ),
                   child: const Icon(Icons.person_rounded,
-                      color: Color(0xFF08111F), size: 34),
+                      color: KuglaColors.deepSpace, size: 34),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -87,25 +89,25 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _settings.displayName.trim().isEmpty
-                            ? 'Local pilot'
-                            : _settings.displayName.trim(),
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${snapshot.totalSessions} missions completed • ${snapshot.totalRounds} rounds played',
+                        name.isEmpty ? 'Pilot' : name,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
                         children: [
-                          Chip(label: Text('Best ${snapshot.bestSessionScore}')),
+                          Chip(label: Text('${snapshot.totalSessions} missions')),
+                          Chip(
+                            label: Text(
+                              snapshot.currentStreakDays == 0
+                                  ? 'No streak'
+                                  : '${snapshot.currentStreakDays}d streak',
+                            ),
+                          ),
                           Chip(label: Text('${snapshot.exploredCountries} countries')),
-                          Chip(label: Text('${snapshot.currentStreakDays} day streak')),
                         ],
                       ),
                     ],
@@ -128,7 +130,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   controller: _displayNameController,
                   decoration: const InputDecoration(
                     labelText: 'Display name',
-                    hintText: 'Example: Bobby or Dad',
+                    hintText: 'e.g. Bobby or Dad',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -137,12 +139,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   textCapitalization: TextCapitalization.characters,
                   decoration: const InputDecoration(
                     labelText: 'Family code',
-                    hintText: 'Example: KUGLAFAM',
+                    hintText: 'e.g. KUGLAFAM',
                   ),
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Use the same family code on both phones to join the same private leaderboard.',
+                  'Use the same family code on both phones to share a private leaderboard.',
+                  style: TextStyle(color: KuglaColors.textMuted),
                 ),
               ],
             ),
@@ -171,7 +174,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   onChanged: (value) =>
                       setState(() => _settings = _settings.copyWith(allowMovement: value)),
                   title: const Text('Allow movement'),
-                  subtitle: const Text('Enable walking or panning to adjacent panoramas.'),
+                  subtitle: const Text('Enable walking to adjacent panoramas.'),
                 ),
               ],
             ),
@@ -183,9 +186,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               children: [
                 Text(
                   'Rounds per mission',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
                 Text('${_settings.roundsPerMission} rounds'),
@@ -196,9 +200,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   label: '${_settings.roundsPerMission}',
                   value: _settings.roundsPerMission.toDouble(),
                   onChanged: (value) => setState(
-                    () => _settings = _settings.copyWith(
-                      roundsPerMission: value.round(),
-                    ),
+                    () => _settings =
+                        _settings.copyWith(roundsPerMission: value.round()),
                   ),
                 ),
               ],
@@ -216,7 +219,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ? '--'
                 : snapshot.averageRoundScore.toStringAsFixed(0),
             icon: Icons.stacked_line_chart_rounded,
-            accent: const Color(0xFF61E6E8),
+            accent: KuglaColors.cyan,
           ),
           const SizedBox(height: 12),
           TelemetryTile(
@@ -225,7 +228,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ? '--'
                 : '${snapshot.averageDistanceKm.toStringAsFixed(0)} km',
             icon: Icons.pin_drop_rounded,
-            accent: const Color(0xFFFFC86B),
+            accent: KuglaColors.amber,
           ),
         ],
       ),

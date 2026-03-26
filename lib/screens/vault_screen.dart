@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
 import '../models/app_state.dart';
 import '../widgets/mission_widgets.dart';
 
 class VaultScreen extends StatefulWidget {
   final AppSnapshot snapshot;
 
-  const VaultScreen({
-    super.key,
-    required this.snapshot,
-  });
+  const VaultScreen({super.key, required this.snapshot});
 
   @override
   State<VaultScreen> createState() => _VaultScreenState();
@@ -28,9 +26,9 @@ class _VaultScreenState extends State<VaultScreen> {
       children: [
         const SectionHeader(
           eyebrow: 'Vault',
-          title: 'Achievement vault',
+          title: 'Star Vault',
           subtitle:
-              'Unlocks here are computed from your real missions, not from sample data.',
+              'Inspect achievement relics, route milestones, and unlock progress across the season.',
         ),
         const SizedBox(height: 18),
         LayoutBuilder(
@@ -43,14 +41,14 @@ class _VaultScreenState extends State<VaultScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Achievements',
+                      'Achievement collection',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                     ),
                     const SizedBox(height: 14),
                     ...List.generate(achievements.length, (index) {
-                      final achievement = achievements[index];
+                      final entry = achievements[index];
                       final selectedItem = index == _selectedIndex;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
@@ -60,39 +58,47 @@ class _VaultScreenState extends State<VaultScreen> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: selectedItem
-                                  ? achievement.color.withValues(alpha: 0.14)
-                                  : const Color(0xFF0D1B2F),
+                                  ? entry.color.withValues(alpha:0.14)
+                                  : KuglaColors.midnight,
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
                                 color: selectedItem
-                                    ? achievement.color.withValues(alpha: 0.6)
+                                    ? entry.color.withValues(alpha:0.6)
                                     : Colors.transparent,
                               ),
                             ),
                             padding: const EdgeInsets.all(14),
                             child: Row(
                               children: [
-                                Icon(achievement.icon, color: achievement.color),
+                                Icon(entry.icon, color: entry.color),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        achievement.title,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w800),
-                                      ),
+                                      Text(entry.title,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w800)),
                                       const SizedBox(height: 4),
-                                      Text(achievement.metricLabel),
+                                      Text(entry.metricLabel,
+                                          style: const TextStyle(
+                                              color: KuglaColors.textMuted,
+                                              fontSize: 12)),
                                     ],
                                   ),
                                 ),
-                                Icon(
-                                  achievement.unlocked
-                                      ? Icons.lock_open_rounded
-                                      : Icons.lock_outline_rounded,
-                                ),
+                                if (entry.unlocked)
+                                  const Icon(Icons.check_circle_rounded,
+                                      size: 18, color: KuglaColors.success)
+                                else
+                                  Text(
+                                    '${(entry.progress * 100).round()}%',
+                                    style: TextStyle(
+                                      color: entry.color,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -116,7 +122,7 @@ class _VaultScreenState extends State<VaultScreen> {
                           width: 58,
                           height: 58,
                           decoration: BoxDecoration(
-                            color: selected.color.withValues(alpha: 0.16),
+                            color: selected.color.withValues(alpha:0.16),
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Icon(selected.icon, color: selected.color),
@@ -131,38 +137,57 @@ class _VaultScreenState extends State<VaultScreen> {
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineSmall
-                                    ?.copyWith(fontWeight: FontWeight.w900),
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                    ),
                               ),
                               const SizedBox(height: 4),
-                              Text(selected.description),
+                              if (selected.unlocked)
+                                const Row(
+                                  children: [
+                                    Icon(Icons.check_circle_rounded,
+                                        size: 14, color: KuglaColors.success),
+                                    SizedBox(width: 4),
+                                    Text('Unlocked',
+                                        style: TextStyle(
+                                            color: KuglaColors.success,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13)),
+                                  ],
+                                )
+                              else
+                                Text(selected.metricLabel,
+                                    style: const TextStyle(
+                                        color: KuglaColors.textMuted)),
                             ],
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
+                    Text(
+                      selected.description,
+                      style: const TextStyle(
+                          color: KuglaColors.textMuted, height: 1.5),
+                    ),
+                    const SizedBox(height: 18),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(20),
                       child: LinearProgressIndicator(
                         minHeight: 12,
                         value: selected.progress,
-                        backgroundColor: const Color(0xFF0D1B2F),
-                        color: selected.color,
+                        backgroundColor: KuglaColors.midnight,
+                        color: selected.unlocked
+                            ? KuglaColors.success
+                            : selected.color,
                       ),
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      selected.metricLabel,
+                      selected.unlocked
+                          ? 'Complete!'
+                          : '${(selected.progress * 100).round()}% complete',
                       style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 18),
-                    TelemetryTile(
-                      label: 'Status',
-                      value: selected.unlocked ? 'Unlocked' : 'In progress',
-                      icon: selected.unlocked
-                          ? Icons.verified_rounded
-                          : Icons.timelapse_rounded,
-                      accent: selected.color,
                     ),
                   ],
                 ),
@@ -171,16 +196,12 @@ class _VaultScreenState extends State<VaultScreen> {
 
             return compact
                 ? Column(
-                    children: [collection, const SizedBox(height: 12), detail],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      collection,
-                      const SizedBox(width: 12),
-                      detail,
-                    ],
-                  );
+                    children: [collection, const SizedBox(height: 12), detail])
+                : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    collection,
+                    const SizedBox(width: 12),
+                    detail,
+                  ]);
           },
         ),
       ],

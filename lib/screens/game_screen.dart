@@ -11,10 +11,12 @@ import '../models/app_state.dart';
 
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
+  final GameMode gameMode;
 
   const GameScreen({
     super.key,
     required this.settings,
+    this.gameMode = GameMode.worldAtlas,
   });
 
   @override
@@ -36,6 +38,9 @@ class _GameScreenState extends State<GameScreen> {
   bool _streetViewFailed = false;
   String? _streetViewErrorMessage;
   Timer? _streetViewTimeout;
+  Timer? _roundTimer;
+  int _secondsLeft = 90;
+  int _streak = 0;
 
   LocationSeed get _currentSeed => _roundSeeds[_roundIndex];
 
@@ -43,18 +48,36 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
-    _roundSeeds = [...streetViewSeeds]..shuffle(_random);
-    _roundSeeds = _roundSeeds.take(widget.settings.roundsPerMission).toList();
+    final seedPool = widget.gameMode == GameMode.landmarkLock
+        ? landmarkSeeds
+        : streetViewSeeds;
+    final roundCount = widget.gameMode == GameMode.worldAtlas
+        ? widget.settings.roundsPerMission
+        : 5;
+    if (widget.gameMode == GameMode.dailyPulse) {
+      final now = DateTime.now();
+      final dateSeed = now.year * 10000 + now.month * 100 + now.day;
+      _roundSeeds = [...seedPool]..shuffle(Random(dateSeed));
+    } else {
+      _roundSeeds = [...seedPool]..shuffle(_random);
+    }
+    _roundSeeds = _roundSeeds.take(roundCount).toList();
     _beginRound();
   }
 
   @override
   void dispose() {
+    _roundTimer?.cancel();
     _streetViewTimeout?.cancel();
     super.dispose();
   }
 
   void _beginRound() {
+    _roundTimer?.cancel();
+    if (widget.gameMode == GameMode.dailyPulse) {
+      _secondsLeft = 90;
+      _roundTimer = Timer.periodic(const Duration(seconds: 1), _onTimerTick);
+    }
     _streetViewTimeout?.cancel();
     _streetViewGeneration += 1;
     _streetViewController = null;
@@ -77,6 +100,26 @@ class _GameScreenState extends State<GameScreen> {
     setState(_beginRound);
   }
 
+  void _onTimerTick(Timer timer) {
+    if (!mounted) return;
+    setState(() => _secondsLeft--);
+    if (_secondsLeft <= 0) {
+      timer.cancel();
+      if (_userGuess != null) {
+        unawaited(_onGuessPressed());
+      } else {
+        _skipRound();
+      }
+    }
+  }
+
+  double _streakMultiplier() {
+    if (_streak <= 0) return 1.0;
+    if (_streak == 1) return 1.10;
+    if (_streak == 2) return 1.15;
+    return 1.20;
+  }
+
   void _toggleMapExpanded([bool? expanded]) {
     setState(() {
       _mapExpanded = expanded ?? !_mapExpanded;
@@ -84,6 +127,8 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _skipRound() {
+    _roundTimer?.cancel();
+    if (widget.gameMode == GameMode.dailyPulse) _streak = 0;
     final seed = _currentSeed;
     final skipped = RoundResult(
       locationId: seed.id,
@@ -205,12 +250,29 @@ class _GameScreenState extends State<GameScreen> {
   double _toRad(double degrees) => degrees * pi / 180;
 
   Future<void> _onGuessPressed() async {
+    _roundTimer?.cancel();
     final guess = _userGuess;
     if (guess == null) return;
 
     final target = LatLng(_currentSeed.latitude, _currentSeed.longitude);
     final distance = _calculateDistance(guess, target);
-    final score = max(0, (5000 - (distance * 8)).round());
+
+    final int baseScore;
+    if (widget.gameMode == GameMode.landmarkLock) {
+      baseScore = max(0, (5000 - (distance * 2.5)).round());
+    } else {
+      baseScore = max(0, (5000 - (distance * 0.25)).round());
+    }
+
+    final multiplier = widget.gameMode == GameMode.dailyPulse && _streak > 0
+        ? _streakMultiplier()
+        : 1.0;
+    final score = (baseScore * multiplier).round().clamp(0, 5000);
+
+    final prevStreak = _streak;
+    if (widget.gameMode == GameMode.dailyPulse) {
+      _streak = baseScore >= 3500 ? _streak + 1 : 0;
+    }
 
     final result = RoundResult(
       locationId: _currentSeed.id,
@@ -227,37 +289,30 @@ class _GameScreenState extends State<GameScreen> {
 
     _results.add(result);
 
-    await showDialog<void>(
+    await showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(
-          _roundIndex == _roundSeeds.length - 1
-              ? 'Mission complete'
-              : 'Round results',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Location: ${_currentSeed.name}, ${_currentSeed.country}'),
-            const SizedBox(height: 6),
-            Text('Distance: ${distance.toStringAsFixed(1)} km'),
-            const SizedBox(height: 6),
-            Text(
-              'Score: $score / 5000',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              _roundIndex == _roundSeeds.length - 1 ? 'Finish' : 'Next round',
-            ),
+      barrierColor: Colors.black.withValues(alpha: 0.62),
+      transitionDuration: const Duration(milliseconds: 360),
+      transitionBuilder: (context, anim, _, child) {
+        final curved =
+            CurvedAnimation(parent: anim, curve: Curves.easeOutBack);
+        return FadeTransition(
+          opacity:
+              CurvedAnimation(parent: anim, curve: const Interval(0, 0.55)),
+          child: ScaleTransition(
+            scale: Tween(begin: 0.86, end: 1.0).animate(curved),
+            child: child,
           ),
-        ],
+        );
+      },
+      pageBuilder: (context, _, __) => _RoundResultOverlay(
+        result: result,
+        roundIndex: _roundIndex,
+        totalRounds: _roundSeeds.length,
+        gameMode: widget.gameMode,
+        streakLength: prevStreak,
+        multiplier: multiplier,
       ),
     );
 
@@ -272,6 +327,7 @@ class _GameScreenState extends State<GameScreen> {
         startedAt: _startedAt,
         completedAt: DateTime.now(),
         rounds: List<RoundResult>.from(_results),
+        gameMode: widget.gameMode,
       );
       Navigator.of(context).pop(session);
       return;
@@ -439,9 +495,45 @@ class _GameScreenState extends State<GameScreen> {
                             onPressed: () => Navigator.of(context).pop(),
                           ),
                           const Spacer(),
-                          _HudChip(
-                            icon: Icons.track_changes_rounded,
-                            label: 'Score $missionScore',
+                          if (widget.gameMode == GameMode.dailyPulse) ...[
+                            _HudChip(
+                              icon: Icons.timer_rounded,
+                              label: _secondsLeft > 0
+                                  ? '${_secondsLeft}s'
+                                  : 'Time!',
+                              color: _secondsLeft <= 5
+                                  ? KuglaColors.rose
+                                  : _secondsLeft <= 15
+                                      ? KuglaColors.amber
+                                      : KuglaColors.cyan,
+                            ),
+                            if (_streak > 0) ...[
+                              const SizedBox(width: 8),
+                              _HudChip(
+                                icon: Icons.local_fire_department_rounded,
+                                label: '${_streak}x',
+                                color: KuglaColors.amber,
+                              ),
+                            ],
+                            const SizedBox(width: 8),
+                          ],
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 380),
+                            transitionBuilder: (child, anim) => SlideTransition(
+                              position: Tween(
+                                begin: const Offset(0, -0.9),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(
+                                  parent: anim,
+                                  curve: Curves.easeOutCubic)),
+                              child:
+                                  FadeTransition(opacity: anim, child: child),
+                            ),
+                            child: _HudChip(
+                              key: ValueKey(missionScore),
+                              icon: Icons.track_changes_rounded,
+                              label: 'Score $missionScore',
+                            ),
                           ),
                         ],
                       ),
@@ -718,13 +810,320 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
+class _RoundResultOverlay extends StatefulWidget {
+  final RoundResult result;
+  final int roundIndex;
+  final int totalRounds;
+  final GameMode gameMode;
+  final int streakLength;
+  final double multiplier;
+
+  const _RoundResultOverlay({
+    required this.result,
+    required this.roundIndex,
+    required this.totalRounds,
+    required this.gameMode,
+    required this.streakLength,
+    required this.multiplier,
+  });
+
+  @override
+  State<_RoundResultOverlay> createState() => _RoundResultOverlayState();
+}
+
+class _RoundResultOverlayState extends State<_RoundResultOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _countController;
+  late final Animation<double> _countAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _countController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _countAnim = CurvedAnimation(
+      parent: _countController,
+      curve: Curves.easeOutCubic,
+    );
+    Future<void>.delayed(const Duration(milliseconds: 260), () {
+      if (mounted) _countController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _countController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final score = widget.result.score;
+    final isLast = widget.roundIndex == widget.totalRounds - 1;
+
+    final Color accent;
+    final String label;
+    final IconData icon;
+    if (score >= 4000) {
+      accent = KuglaColors.cyan;
+      label = 'Sharp eye';
+      icon = Icons.my_location_rounded;
+    } else if (score >= 2500) {
+      accent = KuglaColors.amber;
+      label = 'On target';
+      icon = Icons.track_changes_rounded;
+    } else {
+      accent = KuglaColors.lilac;
+      label = 'Off course';
+      icon = Icons.gps_off_rounded;
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Container(
+              decoration: BoxDecoration(
+                color: KuglaColors.panel,
+                borderRadius: BorderRadius.circular(36),
+                border: Border.all(color: accent.withValues(alpha: 0.45)),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.18),
+                    blurRadius: 48,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isLast
+                          ? 'MISSION COMPLETE'
+                          : 'ROUND ${widget.roundIndex + 1} OF ${widget.totalRounds}',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: KuglaColors.textMuted,
+                            letterSpacing: 1.4,
+                          ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.14),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: accent, size: 30),
+                    ),
+                    const SizedBox(height: 14),
+                    AnimatedBuilder(
+                      animation: _countAnim,
+                      builder: (context, _) {
+                        final displayed = (score * _countAnim.value).round();
+                        return Text(
+                          '$displayed',
+                          style: Theme.of(context)
+                              .textTheme
+                              .displayLarge
+                              ?.copyWith(
+                                color: accent,
+                                fontWeight: FontWeight.w900,
+                                height: 1,
+                              ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '/ 5000',
+                      style: TextStyle(
+                        color: KuglaColors.textMuted,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    AnimatedBuilder(
+                      animation: _countAnim,
+                      builder: (context, _) => ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: LinearProgressIndicator(
+                          value: (score / 5000) * _countAnim.value,
+                          minHeight: 10,
+                          color: accent,
+                          backgroundColor: KuglaColors.midnight,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                        border:
+                            Border.all(color: accent.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    if (widget.gameMode == GameMode.dailyPulse &&
+                        widget.streakLength > 0) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: KuglaColors.amber.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                              color: KuglaColors.amber.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.local_fire_department_rounded,
+                                size: 14, color: KuglaColors.amber),
+                            const SizedBox(width: 5),
+                            Text(
+                              '${widget.streakLength}x streak · +${((widget.multiplier - 1) * 100).round()}% bonus',
+                              style: const TextStyle(
+                                color: KuglaColors.amber,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (widget.gameMode == GameMode.landmarkLock) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: KuglaColors.amber.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                              color: KuglaColors.amber.withValues(alpha: 0.25)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.terrain_rounded,
+                                size: 14, color: KuglaColors.amber),
+                            SizedBox(width: 5),
+                            Text(
+                              'Landmark Lock · precision scoring',
+                              style: TextStyle(
+                                color: KuglaColors.amber,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 22),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: KuglaColors.midnight,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.result.locationName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.result.country,
+                            style: const TextStyle(
+                                color: KuglaColors.textMuted),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.pin_drop_rounded,
+                                  size: 14, color: KuglaColors.textMuted),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${widget.result.distanceKm.toStringAsFixed(1)} km from target',
+                                style: const TextStyle(
+                                  color: KuglaColors.textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          isLast
+                              ? Icons.emoji_events_rounded
+                              : Icons.arrow_forward_rounded,
+                        ),
+                        label: Text(
+                            isLast ? 'See mission results' : 'Next round'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: KuglaColors.deepSpace,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _HudChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color color;
 
   const _HudChip({
+    super.key,
     required this.icon,
     required this.label,
+    this.color = KuglaColors.cyan,
   });
 
   @override
@@ -740,7 +1139,7 @@ class _HudChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: KuglaColors.cyan),
+            Icon(icon, size: 16, color: color),
             const SizedBox(width: 8),
             Text(
               label,
