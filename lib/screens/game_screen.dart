@@ -2,12 +2,13 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_google_street_view/flutter_google_street_view.dart'
-    as street_view;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../app/theme.dart';
 import '../models/app_state.dart';
+
+const _mapsJsKey = String.fromEnvironment('MAPS_JS_KEY');
 
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
@@ -29,7 +30,7 @@ class _GameScreenState extends State<GameScreen> {
 
   late final DateTime _startedAt;
   late List<LocationSeed> _roundSeeds;
-  street_view.StreetViewController? _streetViewController;
+  late final WebViewController _webViewController;
   int _roundIndex = 0;
   int _streetViewGeneration = 0;
   LatLng? _userGuess;
@@ -48,6 +49,11 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
+    _webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(KuglaColors.deepSpace)
+      ..addJavaScriptChannel('StreetViewBridge',
+          onMessageReceived: _onBridgeMessage);
     final seedPool = widget.gameMode == GameMode.landmarkLock
         ? landmarkSeeds
         : streetViewSeeds;
@@ -80,14 +86,22 @@ class _GameScreenState extends State<GameScreen> {
     }
     _streetViewTimeout?.cancel();
     _streetViewGeneration += 1;
-    _streetViewController = null;
     _userGuess = null;
     _mapExpanded = false;
     _streetViewReady = false;
     _streetViewFailed = false;
     _streetViewErrorMessage = null;
-    _streetViewTimeout = Timer(const Duration(seconds: 12), () {
-      if (!mounted || _streetViewReady || _streetViewController != null) return;
+    final seed = _currentSeed;
+    _webViewController.loadHtmlString(_buildStreetViewHtml(
+      lat: seed.latitude,
+      lng: seed.longitude,
+      showStreetNames: widget.settings.showStreetNames,
+      allowMovement: widget.settings.allowMovement,
+      generation: _streetViewGeneration,
+    ));
+    final capturedGeneration = _streetViewGeneration;
+    _streetViewTimeout = Timer(const Duration(seconds: 16), () {
+      if (!mounted || _streetViewReady || capturedGeneration != _streetViewGeneration) return;
       setState(() {
         _streetViewFailed = true;
         _streetViewErrorMessage =
@@ -146,80 +160,78 @@ class _GameScreenState extends State<GameScreen> {
     _advanceOrFinish();
   }
 
-  void _onPanoramaChange(
-    street_view.StreetViewPanoramaLocation? location,
-    Exception? error,
-  ) {
+  void _onBridgeMessage(JavaScriptMessage message) {
     if (!mounted) return;
-    if (error != null) {
+    final parts = message.message.split(':');
+    final type = parts[0];
+    final gen = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    if (gen != null && gen != _streetViewGeneration) return;
+    if (type == 'ready') {
+      _markStreetViewReady();
+    } else if (type == 'error') {
       _streetViewTimeout?.cancel();
       setState(() {
         _streetViewFailed = true;
-        _streetViewErrorMessage = error.toString();
+        _streetViewErrorMessage = parts.length > 2
+            ? parts.sublist(2).join(':')
+            : 'Street View is not available at this location.';
       });
-      return;
     }
-    if (location?.panoId == null) return;
-    _markStreetViewReady();
   }
 
-  void _onStreetViewCreated(street_view.StreetViewController controller) {
-    _streetViewController = controller;
-    final generation = _streetViewGeneration;
-
-    unawaited(_configureStreetViewController(controller, generation));
-
-    // The native Street View surface can be visibly alive before the plugin
-    // emits a panorama-change callback, so don't keep the player blocked.
-    Future<void>.delayed(const Duration(milliseconds: 1200), () async {
-      if (!mounted ||
-          generation != _streetViewGeneration ||
-          _streetViewFailed) {
-        return;
+  String _buildStreetViewHtml({
+    required double lat,
+    required double lng,
+    required bool showStreetNames,
+    required bool allowMovement,
+    required int generation,
+  }) {
+    return '''<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body, #sv { width:100%; height:100%; background:#050B14; }
+</style>
+</head>
+<body>
+<div id="sv"></div>
+<script>
+  function initSV() {
+    var sv = new google.maps.StreetViewPanorama(document.getElementById('sv'), {
+      position: { lat: $lat, lng: $lng },
+      radius: 1200,
+      source: google.maps.StreetViewSource.DEFAULT,
+      showRoadLabels: ${showStreetNames ? 'true' : 'false'},
+      linksControl: ${allowMovement ? 'true' : 'false'},
+      panControl: true,
+      zoomControl: false,
+      fullscreenControl: false,
+      addressControl: false,
+      enableCloseButton: false,
+      motionTracking: false,
+      motionTrackingControl: false,
+    });
+    var reported = false;
+    var gen = $generation;
+    sv.addListener('status_changed', function() {
+      if (reported) return;
+      if (sv.getStatus() === google.maps.StreetViewStatus.OK) {
+        reported = true;
+        StreetViewBridge.postMessage('ready:' + gen);
+      } else {
+        reported = true;
+        StreetViewBridge.postMessage('error:' + gen + ':No Street View imagery found near this location.');
       }
-      _markStreetViewReady();
-      await _probeStreetViewLocation(generation);
     });
   }
-
-  Future<void> _configureStreetViewController(
-    street_view.StreetViewController controller,
-    int generation,
-  ) async {
-    try {
-      await controller.setPanningGesturesEnabled(true);
-      await controller.setZoomGesturesEnabled(true);
-      await controller.setStreetNamesEnabled(widget.settings.showStreetNames);
-      await controller.setUserNavigationEnabled(widget.settings.allowMovement);
-    } catch (_) {
-      if (!mounted || generation != _streetViewGeneration) return;
-    }
-  }
-
-  Future<void> _probeStreetViewLocation(int generation) async {
-    for (var attempt = 0; attempt < 4; attempt++) {
-      if (!mounted ||
-          generation != _streetViewGeneration ||
-          _streetViewFailed) {
-        return;
-      }
-
-      final controller = _streetViewController;
-      if (controller == null) return;
-
-      try {
-        final location = await controller.getLocation();
-        if (!mounted || generation != _streetViewGeneration) return;
-        if (location?.panoId != null) {
-          _markStreetViewReady();
-          return;
-        }
-      } catch (_) {
-        // Ignore probe failures and let the native view continue rendering.
-      }
-
-      await Future<void>.delayed(const Duration(milliseconds: 900));
-    }
+</script>
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key=$_mapsJsKey&callback=initSV">
+</script>
+</body>
+</html>''';
   }
 
   void _markStreetViewReady() {
@@ -343,7 +355,6 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final target = LatLng(_currentSeed.latitude, _currentSeed.longitude);
     final missionScore =
         _results.fold<int>(0, (sum, result) => sum + result.score);
     final canOpenMap = _streetViewReady && !_streetViewFailed;
@@ -356,17 +367,7 @@ class _GameScreenState extends State<GameScreen> {
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: street_view.FlutterGoogleStreetView(
-              key: ValueKey(
-                  '${_currentSeed.id}-${_streetViewFailed ? 'retry' : 'live'}'),
-              initPos: target,
-              initRadius: 1200,
-              initSource: street_view.StreetViewSource.def,
-              streetNamesEnabled: widget.settings.showStreetNames,
-              userNavigationEnabled: widget.settings.allowMovement,
-              onStreetViewCreated: _onStreetViewCreated,
-              onPanoramaChangeListener: _onPanoramaChange,
-            ),
+            child: WebViewWidget(controller: _webViewController),
           ),
           const Positioned.fill(
             child: IgnorePointer(
