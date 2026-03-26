@@ -9,6 +9,8 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.kugla.app
+      groups:
+        - kugla_secrets
       vars:
         APP_ID: 6761148502
       flutter: stable
