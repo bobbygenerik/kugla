@@ -840,7 +840,6 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _countController;
   late final Animation<double> _countAnim;
-  GoogleMapController? _mapController;
 
   @override
   void initState() {
@@ -860,51 +859,8 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
 
   @override
   void dispose() {
-    _mapController?.dispose();
     _countController.dispose();
     super.dispose();
-  }
-
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
-    final target = LatLng(
-      widget.result.targetLatitude,
-      widget.result.targetLongitude,
-    );
-    final guess = LatLng(
-      widget.result.guessLatitude,
-      widget.result.guessLongitude,
-    );
-    // Wait for the map surface to be ready before moving the camera.
-    Future<void>.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      final ctrl = _mapController;
-      if (ctrl == null) return;
-      // If target == guess (skipped round) bounds would be zero — use fixed zoom.
-      final identical = (target.latitude - guess.latitude).abs() < 0.0001 &&
-          (target.longitude - guess.longitude).abs() < 0.0001;
-      if (identical) {
-        ctrl.animateCamera(
-          CameraUpdate.newLatLngZoom(target, 10),
-        );
-      } else {
-        final bounds = LatLngBounds(
-          southwest: LatLng(
-            target.latitude < guess.latitude ? target.latitude : guess.latitude,
-            target.longitude < guess.longitude
-                ? target.longitude
-                : guess.longitude,
-          ),
-          northeast: LatLng(
-            target.latitude > guess.latitude ? target.latitude : guess.latitude,
-            target.longitude > guess.longitude
-                ? target.longitude
-                : guess.longitude,
-          ),
-        );
-        ctrl.animateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
-      }
-    });
   }
 
   @override
@@ -1097,65 +1053,15 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                       borderRadius: BorderRadius.circular(16),
                       child: SizedBox(
                         height: 180,
-                        child: GoogleMap(
-                          initialCameraPosition: CameraPosition(
-                            target: LatLng(
-                              (widget.result.targetLatitude +
-                                      widget.result.guessLatitude) /
-                                  2,
-                              (widget.result.targetLongitude +
-                                      widget.result.guessLongitude) /
-                                  2,
-                            ),
-                            zoom: 2,
+                        width: double.infinity,
+                        child: CustomPaint(
+                          painter: _ResultMapPainter(
+                            targetLat: widget.result.targetLatitude,
+                            targetLng: widget.result.targetLongitude,
+                            guessLat: widget.result.guessLatitude,
+                            guessLng: widget.result.guessLongitude,
+                            lineColor: accent,
                           ),
-                          onMapCreated: _onMapCreated,
-                          markers: {
-                            Marker(
-                              markerId: const MarkerId('target'),
-                              position: LatLng(
-                                widget.result.targetLatitude,
-                                widget.result.targetLongitude,
-                              ),
-                              icon: BitmapDescriptor.defaultMarkerWithHue(
-                                BitmapDescriptor.hueGreen,
-                              ),
-                            ),
-                            Marker(
-                              markerId: const MarkerId('guess'),
-                              position: LatLng(
-                                widget.result.guessLatitude,
-                                widget.result.guessLongitude,
-                              ),
-                              icon: BitmapDescriptor.defaultMarkerWithHue(
-                                BitmapDescriptor.hueRed,
-                              ),
-                            ),
-                          },
-                          polylines: {
-                            Polyline(
-                              polylineId: const PolylineId('line'),
-                              points: [
-                                LatLng(
-                                  widget.result.targetLatitude,
-                                  widget.result.targetLongitude,
-                                ),
-                                LatLng(
-                                  widget.result.guessLatitude,
-                                  widget.result.guessLongitude,
-                                ),
-                              ],
-                              color: accent,
-                              width: 2,
-                            ),
-                          },
-                          myLocationButtonEnabled: false,
-                          zoomControlsEnabled: false,
-                          scrollGesturesEnabled: false,
-                          zoomGesturesEnabled: false,
-                          rotateGesturesEnabled: false,
-                          tiltGesturesEnabled: false,
-                          mapToolbarEnabled: false,
                         ),
                       ),
                     ),
@@ -1298,4 +1204,96 @@ class _HudIconButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ResultMapPainter extends CustomPainter {
+  final double targetLat;
+  final double targetLng;
+  final double guessLat;
+  final double guessLng;
+  final Color lineColor;
+
+  const _ResultMapPainter({
+    required this.targetLat,
+    required this.targetLng,
+    required this.guessLat,
+    required this.guessLng,
+    required this.lineColor,
+  });
+
+  // Equirectangular projection: lat/lng → fractional (x, y) in [0,1]
+  Offset _project(double lat, double lng, Size size) {
+    final x = (lng + 180) / 360 * size.width;
+    final y = (90 - lat) / 180 * size.height;
+    return Offset(x, y);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Background
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = KuglaColors.midnight,
+    );
+
+    // Grid lines
+    final gridPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.07)
+      ..strokeWidth = 0.5;
+    for (var lng = -180; lng <= 180; lng += 30) {
+      final x = (lng + 180) / 360 * size.width;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (var lat = -90; lat <= 90; lat += 30) {
+      final y = (90 - lat) / 180 * size.height;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final targetPt = _project(targetLat, targetLng, size);
+    final guessPt = _project(guessLat, guessLng, size);
+
+    // Line between guess and target
+    final linePaint = Paint()
+      ..color = lineColor.withValues(alpha: 0.7)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(targetPt, guessPt, linePaint);
+
+    // Target marker (green)
+    canvas.drawCircle(
+      targetPt,
+      7,
+      Paint()..color = const Color(0xFF00E5CC),
+    );
+    canvas.drawCircle(
+      targetPt,
+      7,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+
+    // Guess marker (red/lilac)
+    canvas.drawCircle(
+      guessPt,
+      6,
+      Paint()..color = KuglaColors.lilac,
+    );
+    canvas.drawCircle(
+      guessPt,
+      6,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ResultMapPainter old) =>
+      old.targetLat != targetLat ||
+      old.targetLng != targetLng ||
+      old.guessLat != guessLat ||
+      old.guessLng != guessLng;
 }
