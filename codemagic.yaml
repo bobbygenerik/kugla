@@ -21,6 +21,9 @@ workflows:
       - name: Disable Swift Package Manager
         script: flutter config --no-enable-swift-package-manager
 
+      - name: Write API key to xcconfig
+        script: echo "GMS_API_KEY=$GMS_API_KEY" > ios/Flutter/Secrets.xcconfig
+
       - name: Flutter pub get
         script: flutter pub get
 
