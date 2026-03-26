@@ -840,6 +840,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _countController;
   late final Animation<double> _countAnim;
+  GoogleMapController? _mapController;
 
   @override
   void initState() {
@@ -859,8 +860,51 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
 
   @override
   void dispose() {
+    _mapController?.dispose();
     _countController.dispose();
     super.dispose();
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    final target = LatLng(
+      widget.result.targetLatitude,
+      widget.result.targetLongitude,
+    );
+    final guess = LatLng(
+      widget.result.guessLatitude,
+      widget.result.guessLongitude,
+    );
+    // Wait for the map surface to be ready before moving the camera.
+    Future<void>.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      final ctrl = _mapController;
+      if (ctrl == null) return;
+      // If target == guess (skipped round) bounds would be zero — use fixed zoom.
+      final identical = (target.latitude - guess.latitude).abs() < 0.0001 &&
+          (target.longitude - guess.longitude).abs() < 0.0001;
+      if (identical) {
+        ctrl.animateCamera(
+          CameraUpdate.newLatLngZoom(target, 10),
+        );
+      } else {
+        final bounds = LatLngBounds(
+          southwest: LatLng(
+            target.latitude < guess.latitude ? target.latitude : guess.latitude,
+            target.longitude < guess.longitude
+                ? target.longitude
+                : guess.longitude,
+          ),
+          northeast: LatLng(
+            target.latitude > guess.latitude ? target.latitude : guess.latitude,
+            target.longitude > guess.longitude
+                ? target.longitude
+                : guess.longitude,
+          ),
+        );
+        ctrl.animateCamera(CameraUpdate.newLatLngBounds(bounds, 48));
+      }
+    });
   }
 
   @override
@@ -1065,37 +1109,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                             ),
                             zoom: 2,
                           ),
-                          onMapCreated: (controller) {
-                            final target = LatLng(
-                              widget.result.targetLatitude,
-                              widget.result.targetLongitude,
-                            );
-                            final guess = LatLng(
-                              widget.result.guessLatitude,
-                              widget.result.guessLongitude,
-                            );
-                            final bounds = LatLngBounds(
-                              southwest: LatLng(
-                                target.latitude < guess.latitude
-                                    ? target.latitude
-                                    : guess.latitude,
-                                target.longitude < guess.longitude
-                                    ? target.longitude
-                                    : guess.longitude,
-                              ),
-                              northeast: LatLng(
-                                target.latitude > guess.latitude
-                                    ? target.latitude
-                                    : guess.latitude,
-                                target.longitude > guess.longitude
-                                    ? target.longitude
-                                    : guess.longitude,
-                              ),
-                            );
-                            controller.animateCamera(
-                              CameraUpdate.newLatLngBounds(bounds, 48),
-                            );
-                          },
+                          onMapCreated: _onMapCreated,
                           markers: {
                             Marker(
                               markerId: const MarkerId('target'),
