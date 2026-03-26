@@ -58,7 +58,8 @@ class _AppShellState extends State<AppShell> {
     setState(() => _snapshot = snapshot);
     if (firstLaunch) {
       await _store.markOnboardingSeen();
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openOnboarding());
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _openOnboarding(firstLaunch: true));
     }
   }
 
@@ -90,9 +91,24 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  void _openOnboarding() {
+  void _openOnboarding({bool firstLaunch = false}) {
+    final snapshot = _snapshot;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => OnboardingScreen(
+          showProfileSetup: firstLaunch,
+          initialSettings: snapshot?.settings ?? const AppSettings.defaults(),
+          onProfileSaved: firstLaunch
+              ? (settings) async {
+                  if (snapshot == null) return;
+                  final updated =
+                      await _store.saveSettings(snapshot, settings);
+                  if (!mounted) return;
+                  setState(() => _snapshot = updated);
+                }
+              : null,
+        ),
+      ),
     );
   }
 
@@ -155,6 +171,7 @@ class _AppShellState extends State<AppShell> {
       onNavTap: _setIndex,
       onOpenProfile: _openProfile,
       onOpenOnboarding: _openOnboarding,
+      avatarPath: snapshot.settings.avatarPath,
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
         switchInCurve: Curves.easeOutCubic,

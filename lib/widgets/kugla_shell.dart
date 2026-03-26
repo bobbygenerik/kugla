@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ class KuglaShell extends StatelessWidget {
   final ValueChanged<int> onNavTap;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenOnboarding;
+  final String? avatarPath;
 
   const KuglaShell({
     super.key,
@@ -20,6 +22,7 @@ class KuglaShell extends StatelessWidget {
     required this.onNavTap,
     required this.onOpenProfile,
     required this.onOpenOnboarding,
+    this.avatarPath,
   });
 
   @override
@@ -30,6 +33,7 @@ class KuglaShell extends StatelessWidget {
         title: title,
         onOpenProfile: onOpenProfile,
         onOpenOnboarding: onOpenOnboarding,
+        avatarPath: avatarPath,
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -53,11 +57,13 @@ class _KuglaTopBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenOnboarding;
+  final String? avatarPath;
 
   const _KuglaTopBar({
     required this.title,
     required this.onOpenProfile,
     required this.onOpenOnboarding,
+    this.avatarPath,
   });
 
   @override
@@ -110,14 +116,26 @@ class _KuglaTopBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: IconButton.filledTonal(
-            tooltip: 'Profile',
-            onPressed: onOpenProfile,
-            style: IconButton.styleFrom(
-              backgroundColor: KuglaColors.panelRaised,
-              foregroundColor: KuglaColors.cyanSoft,
+          child: GestureDetector(
+            onTap: onOpenProfile,
+            child: Tooltip(
+              message: 'Profile',
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [KuglaColors.cyan, KuglaColors.lilac],
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: avatarPath != null
+                    ? Image.file(File(avatarPath!), fit: BoxFit.cover)
+                    : const Icon(Icons.person_rounded,
+                        color: KuglaColors.deepSpace, size: 22),
+              ),
             ),
-            icon: const Icon(Icons.person_rounded),
           ),
         ),
       ],

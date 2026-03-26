@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../app/theme.dart';
 import '../models/app_state.dart';
@@ -22,6 +25,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late AppSettings _settings;
   late final TextEditingController _displayNameController;
   late final TextEditingController _familyCodeController;
+  final _picker = ImagePicker();
   bool _saving = false;
 
   @override
@@ -39,10 +43,54 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    final file = await _picker.pickImage(source: source, imageQuality: 85);
+    if (file == null) return;
+    setState(() => _settings = _settings.copyWith(avatarPath: file.path));
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: KuglaColors.panel,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded,
+                  color: KuglaColors.cyan),
+              title: const Text('Choose from library'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded,
+                  color: KuglaColors.cyan),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _persist() async {
     final nextSettings = _settings.copyWith(
       displayName: _displayNameController.text.trim(),
       familyCode: _familyCodeController.text.trim().toUpperCase(),
+      avatarPath: _settings.avatarPath,
     );
     setState(() => _saving = true);
     final updated = await widget.onSave(nextSettings);
@@ -71,17 +119,43 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           GlassPanel(
             child: Row(
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      colors: [KuglaColors.cyan, KuglaColors.lilac],
-                    ),
+                GestureDetector(
+                  onTap: _showImageSourceSheet,
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [KuglaColors.cyan, KuglaColors.lilac],
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _settings.avatarPath != null
+                            ? Image.file(
+                                File(_settings.avatarPath!),
+                                fit: BoxFit.cover,
+                              )
+                            : const Icon(Icons.person_rounded,
+                                color: KuglaColors.deepSpace, size: 34),
+                      ),
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: KuglaColors.cyan,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: KuglaColors.panel, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded,
+                            size: 11, color: KuglaColors.deepSpace),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.person_rounded,
-                      color: KuglaColors.deepSpace, size: 34),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

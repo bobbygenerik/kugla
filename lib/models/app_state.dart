@@ -8,6 +8,7 @@ class AppSettings {
   final bool showStreetNames;
   final bool allowMovement;
   final int roundsPerMission;
+  final String? avatarPath;
 
   const AppSettings({
     required this.displayName,
@@ -15,6 +16,7 @@ class AppSettings {
     required this.showStreetNames,
     required this.allowMovement,
     required this.roundsPerMission,
+    this.avatarPath,
   });
 
   const AppSettings.defaults()
@@ -22,7 +24,8 @@ class AppSettings {
         familyCode = '',
         showStreetNames = false,
         allowMovement = true,
-        roundsPerMission = 3;
+        roundsPerMission = 3,
+        avatarPath = null;
 
   AppSettings copyWith({
     String? displayName,
@@ -30,6 +33,7 @@ class AppSettings {
     bool? showStreetNames,
     bool? allowMovement,
     int? roundsPerMission,
+    Object? avatarPath = _unset,
   }) {
     return AppSettings(
       displayName: displayName ?? this.displayName,
@@ -37,6 +41,8 @@ class AppSettings {
       showStreetNames: showStreetNames ?? this.showStreetNames,
       allowMovement: allowMovement ?? this.allowMovement,
       roundsPerMission: roundsPerMission ?? this.roundsPerMission,
+      avatarPath:
+          avatarPath == _unset ? this.avatarPath : avatarPath as String?,
     );
   }
 
@@ -46,6 +52,7 @@ class AppSettings {
         'showStreetNames': showStreetNames,
         'allowMovement': allowMovement,
         'roundsPerMission': roundsPerMission,
+        if (avatarPath != null) 'avatarPath': avatarPath,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -55,9 +62,12 @@ class AppSettings {
       showStreetNames: json['showStreetNames'] as bool? ?? false,
       allowMovement: json['allowMovement'] as bool? ?? true,
       roundsPerMission: json['roundsPerMission'] as int? ?? 3,
+      avatarPath: json['avatarPath'] as String?,
     );
   }
 }
+
+const _unset = Object();
 
 class RemoteLeaderboardEntry {
   final String userId;
