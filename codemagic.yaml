@@ -9,8 +9,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.kugla.app
-      groups:
-        - kugla_secrets
       vars:
         APP_ID: 6761148502
       flutter: stable
@@ -22,9 +20,6 @@ workflows:
 
       - name: Disable Swift Package Manager
         script: flutter config --no-enable-swift-package-manager
-
-      - name: Write API key to xcconfig
-        script: echo "GMS_API_KEY=$GMS_API_KEY" > ios/Flutter/Secrets.xcconfig
 
       - name: Flutter pub get
         script: flutter pub get
@@ -42,6 +37,7 @@ workflows:
           flutter build ipa \
             --release \
             --build-number=$((LATEST_BUILD_NUMBER + 1)) \
+            --dart-define=MAPS_JS_KEY=$GMS_API_KEY \
             --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:

@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_google_street_view/flutter_google_street_view.dart' as sv;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../app/theme.dart';
 import '../models/app_state.dart';
+
+const _mapsJsKey = String.fromEnvironment('MAPS_JS_KEY');
 
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
@@ -28,7 +30,7 @@ class _GameScreenState extends State<GameScreen> {
 
   late final DateTime _startedAt;
   late List<LocationSeed> _roundSeeds;
-  sv.StreetViewController? _streetViewController;
+  late final WebViewController _webViewController;
   int _roundIndex = 0;
   int _streetViewGeneration = 0;
   LatLng? _userGuess;
@@ -47,6 +49,11 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
+    _webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(KuglaColors.deepSpace)
+      ..addJavaScriptChannel('StreetViewBridge',
+          onMessageReceived: _onBridgeMessage);
     final seedPool = widget.gameMode == GameMode.landmarkLock
         ? landmarkSeeds
         : streetViewSeeds;
@@ -85,10 +92,13 @@ class _GameScreenState extends State<GameScreen> {
     _streetViewFailed = false;
     _streetViewErrorMessage = null;
     final seed = _currentSeed;
-    _streetViewController?.setPosition(
-      position: sv.LatLng(seed.latitude, seed.longitude),
-      radius: 1200,
-    );
+    _webViewController.loadHtmlString(_buildStreetViewHtml(
+      lat: seed.latitude,
+      lng: seed.longitude,
+      showStreetNames: widget.settings.showStreetNames,
+      allowMovement: widget.settings.allowMovement,
+      generation: _streetViewGeneration,
+    ));
     final capturedGeneration = _streetViewGeneration;
     _streetViewTimeout = Timer(const Duration(seconds: 16), () {
       if (!mounted || _streetViewReady || capturedGeneration != _streetViewGeneration) return;
@@ -150,21 +160,78 @@ class _GameScreenState extends State<GameScreen> {
     _advanceOrFinish();
   }
 
-  void _onStreetViewCreated(sv.StreetViewController controller) {
-    _streetViewController = controller;
-  }
-
-  void _onPanoramaChange(sv.StreetViewPanoramaLocation? location, Exception? e) {
+  void _onBridgeMessage(JavaScriptMessage message) {
     if (!mounted) return;
-    if (e != null) {
+    final parts = message.message.split(':');
+    final type = parts[0];
+    final gen = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    if (gen != null && gen != _streetViewGeneration) return;
+    if (type == 'ready') {
+      _markStreetViewReady();
+    } else if (type == 'error') {
       _streetViewTimeout?.cancel();
       setState(() {
         _streetViewFailed = true;
-        _streetViewErrorMessage = 'No Street View imagery found near this location.';
+        _streetViewErrorMessage = parts.length > 2
+            ? parts.sublist(2).join(':')
+            : 'Street View is not available at this location.';
       });
-    } else if (location != null) {
-      _markStreetViewReady();
     }
+  }
+
+  String _buildStreetViewHtml({
+    required double lat,
+    required double lng,
+    required bool showStreetNames,
+    required bool allowMovement,
+    required int generation,
+  }) {
+    return '''<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body, #sv { width:100%; height:100%; background:#050B14; }
+</style>
+</head>
+<body>
+<div id="sv"></div>
+<script>
+  function initSV() {
+    var sv = new google.maps.StreetViewPanorama(document.getElementById('sv'), {
+      position: { lat: $lat, lng: $lng },
+      radius: 1200,
+      source: google.maps.StreetViewSource.DEFAULT,
+      showRoadLabels: ${showStreetNames ? 'true' : 'false'},
+      linksControl: ${allowMovement ? 'true' : 'false'},
+      panControl: true,
+      zoomControl: false,
+      fullscreenControl: false,
+      addressControl: false,
+      enableCloseButton: false,
+      motionTracking: false,
+      motionTrackingControl: false,
+    });
+    var reported = false;
+    var gen = $generation;
+    sv.addListener('status_changed', function() {
+      if (reported) return;
+      if (sv.getStatus() === google.maps.StreetViewStatus.OK) {
+        reported = true;
+        StreetViewBridge.postMessage('ready:' + gen);
+      } else {
+        reported = true;
+        StreetViewBridge.postMessage('error:' + gen + ':No Street View imagery found near this location.');
+      }
+    });
+  }
+</script>
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key=$_mapsJsKey&callback=initSV">
+</script>
+</body>
+</html>''';
   }
 
   void _markStreetViewReady() {
@@ -300,17 +367,7 @@ class _GameScreenState extends State<GameScreen> {
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: sv.FlutterGoogleStreetView(
-              initPos: sv.LatLng(
-                _roundSeeds[0].latitude,
-                _roundSeeds[0].longitude,
-              ),
-              initRadius: 1200,
-              onStreetViewCreated: _onStreetViewCreated,
-              onPanoramaChangeListener: _onPanoramaChange,
-              streetNamesEnabled: widget.settings.showStreetNames,
-              userNavigationEnabled: widget.settings.allowMovement,
-            ),
+            child: WebViewWidget(controller: _webViewController),
           ),
           const Positioned.fill(
             child: IgnorePointer(
