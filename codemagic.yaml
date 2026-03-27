@@ -42,7 +42,6 @@ workflows:
           flutter build ipa \
             --release \
             --build-number=$((LATEST_BUILD_NUMBER + 1)) \
-            --dart-define=MAPS_JS_KEY=$GMS_API_KEY \
             --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
