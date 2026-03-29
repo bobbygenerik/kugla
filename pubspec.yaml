@@ -9,8 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_google_street_view: ^3.1.4
   google_maps_flutter: ^2.5.3
-  webview_flutter: ^4.10.0
   cupertino_icons: ^1.0.2
   shared_preferences: ^2.5.3
   firebase_core: ^3.13.1

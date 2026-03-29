@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter_google_street_view/flutter_google_street_view.dart'
+    as street_view;
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter/services.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as map_view;
 
 import '../app/theme.dart';
 import '../models/app_state.dart';
 
-const _mapsJsKey = String.fromEnvironment('MAPS_JS_KEY');
+const _mapsConfigChannel = MethodChannel('kugla/maps_config');
 
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
@@ -30,10 +32,9 @@ class _GameScreenState extends State<GameScreen> {
 
   late final DateTime _startedAt;
   late List<LocationSeed> _roundSeeds;
-  late final WebViewController _webViewController;
   int _roundIndex = 0;
   int _streetViewGeneration = 0;
-  LatLng? _userGuess;
+  map_view.LatLng? _userGuess;
   bool _mapExpanded = false;
   bool _streetViewReady = false;
   bool _streetViewFailed = false;
@@ -42,6 +43,7 @@ class _GameScreenState extends State<GameScreen> {
   Timer? _roundTimer;
   int _secondsLeft = 90;
   int _streak = 0;
+  bool _nativeMapAvailable = false;
 
   LocationSeed get _currentSeed => _roundSeeds[_roundIndex];
 
@@ -49,11 +51,6 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
-    _webViewController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(KuglaColors.deepSpace)
-      ..addJavaScriptChannel('StreetViewBridge',
-          onMessageReceived: _onBridgeMessage);
     final seedPool = widget.gameMode == GameMode.landmarkLock
         ? landmarkSeeds
         : streetViewSeeds;
@@ -68,6 +65,7 @@ class _GameScreenState extends State<GameScreen> {
       _roundSeeds = [...seedPool]..shuffle(_random);
     }
     _roundSeeds = _roundSeeds.take(roundCount).toList();
+    unawaited(_loadNativeMapAvailability());
     _beginRound();
   }
 
@@ -91,14 +89,6 @@ class _GameScreenState extends State<GameScreen> {
     _streetViewReady = false;
     _streetViewFailed = false;
     _streetViewErrorMessage = null;
-    final seed = _currentSeed;
-    _webViewController.loadHtmlString(_buildStreetViewHtml(
-      lat: seed.latitude,
-      lng: seed.longitude,
-      showStreetNames: widget.settings.showStreetNames,
-      allowMovement: widget.settings.allowMovement,
-      generation: _streetViewGeneration,
-    ));
     final capturedGeneration = _streetViewGeneration;
     _streetViewTimeout = Timer(const Duration(seconds: 16), () {
       if (!mounted || _streetViewReady || capturedGeneration != _streetViewGeneration) return;
@@ -108,6 +98,28 @@ class _GameScreenState extends State<GameScreen> {
             'The panorama took too long to respond. This usually means Street View is unavailable for this spot or the API request was rejected.';
       });
     });
+  }
+
+  Future<void> _loadNativeMapAvailability() async {
+    try {
+      final available =
+          await _mapsConfigChannel.invokeMethod<bool>('isGoogleMapsAvailable') ??
+              false;
+      if (!mounted) return;
+      setState(() {
+        _nativeMapAvailable = available;
+      });
+    } on PlatformException {
+      if (!mounted) return;
+      setState(() {
+        _nativeMapAvailable = false;
+      });
+    } on MissingPluginException {
+      if (!mounted) return;
+      setState(() {
+        _nativeMapAvailable = true;
+      });
+    }
   }
 
   void _retryRound() {
@@ -160,78 +172,22 @@ class _GameScreenState extends State<GameScreen> {
     _advanceOrFinish();
   }
 
-  void _onBridgeMessage(JavaScriptMessage message) {
+  void _handleStreetViewChange(
+    street_view.StreetViewPanoramaLocation? location,
+    Exception? error,
+  ) {
     if (!mounted) return;
-    final parts = message.message.split(':');
-    final type = parts[0];
-    final gen = parts.length > 1 ? int.tryParse(parts[1]) : null;
-    if (gen != null && gen != _streetViewGeneration) return;
-    if (type == 'ready') {
-      _markStreetViewReady();
-    } else if (type == 'error') {
+    if (error != null || location == null) {
       _streetViewTimeout?.cancel();
       setState(() {
         _streetViewFailed = true;
-        _streetViewErrorMessage = parts.length > 2
-            ? parts.sublist(2).join(':')
-            : 'Street View is not available at this location.';
+        _streetViewErrorMessage = error?.toString() ??
+            'Street View is not available at this location.';
       });
+      return;
     }
-  }
 
-  String _buildStreetViewHtml({
-    required double lat,
-    required double lng,
-    required bool showStreetNames,
-    required bool allowMovement,
-    required int generation,
-  }) {
-    return '''<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html, body, #sv { width:100%; height:100%; background:#050B14; }
-</style>
-</head>
-<body>
-<div id="sv"></div>
-<script>
-  function initSV() {
-    var sv = new google.maps.StreetViewPanorama(document.getElementById('sv'), {
-      position: { lat: $lat, lng: $lng },
-      radius: 1200,
-      source: google.maps.StreetViewSource.DEFAULT,
-      showRoadLabels: ${showStreetNames ? 'true' : 'false'},
-      linksControl: ${allowMovement ? 'true' : 'false'},
-      panControl: true,
-      zoomControl: false,
-      fullscreenControl: false,
-      addressControl: false,
-      enableCloseButton: false,
-      motionTracking: false,
-      motionTrackingControl: false,
-    });
-    var reported = false;
-    var gen = $generation;
-    sv.addListener('status_changed', function() {
-      if (reported) return;
-      if (sv.getStatus() === google.maps.StreetViewStatus.OK) {
-        reported = true;
-        StreetViewBridge.postMessage('ready:' + gen);
-      } else {
-        reported = true;
-        StreetViewBridge.postMessage('error:' + gen + ':No Street View imagery found near this location.');
-      }
-    });
-  }
-</script>
-<script async
-  src="https://maps.googleapis.com/maps/api/js?key=$_mapsJsKey&callback=initSV">
-</script>
-</body>
-</html>''';
+    _markStreetViewReady();
   }
 
   void _markStreetViewReady() {
@@ -247,7 +203,7 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  double _calculateDistance(LatLng p1, LatLng p2) {
+  double _calculateDistance(map_view.LatLng p1, map_view.LatLng p2) {
     const radius = 6371.0;
     final dLat = _toRad(p2.latitude - p1.latitude);
     final dLon = _toRad(p2.longitude - p1.longitude);
@@ -266,7 +222,8 @@ class _GameScreenState extends State<GameScreen> {
     final guess = _userGuess;
     if (guess == null) return;
 
-    final target = LatLng(_currentSeed.latitude, _currentSeed.longitude);
+    final target =
+        map_view.LatLng(_currentSeed.latitude, _currentSeed.longitude);
     final distance = _calculateDistance(guess, target);
 
     final int baseScore;
@@ -357,7 +314,8 @@ class _GameScreenState extends State<GameScreen> {
     final media = MediaQuery.of(context);
     final missionScore =
         _results.fold<int>(0, (sum, result) => sum + result.score);
-    final canOpenMap = _streetViewReady && !_streetViewFailed;
+    final canOpenMap =
+        _streetViewReady && !_streetViewFailed && _nativeMapAvailable;
     final mapHeight = min(media.size.height * 0.56, 430.0);
     final cluePanelWidth = min(media.size.width - 32, 440.0);
 
@@ -367,7 +325,43 @@ class _GameScreenState extends State<GameScreen> {
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: WebViewWidget(controller: _webViewController),
+            child: _nativeMapAvailable
+                ? street_view.FlutterGoogleStreetView(
+                    key: ValueKey(
+                      '${_currentSeed.id}:$_streetViewGeneration',
+                    ),
+                    initPos: street_view.LatLng(
+                      _currentSeed.latitude,
+                      _currentSeed.longitude,
+                    ),
+                    initSource: street_view.StreetViewSource.def,
+                    onStreetViewCreated: (_) {},
+                    onPanoramaChangeListener: _handleStreetViewChange,
+                    streetNamesEnabled: widget.settings.showStreetNames,
+                    userNavigationEnabled: widget.settings.allowMovement,
+                    zoomGesturesEnabled: false,
+                    panningGesturesEnabled: true,
+                  )
+                : ColoredBox(
+                    color: KuglaColors.deepSpace,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 420),
+                          child: const Text(
+                            'Street View is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable missions.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
           ),
           const Positioned.fill(
             child: IgnorePointer(
@@ -388,7 +382,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
           ),
-          if (!_streetViewReady && !_streetViewFailed)
+          if (_nativeMapAvailable && !_streetViewReady && !_streetViewFailed)
             const Positioned.fill(
               child: ColoredBox(
                 color: Color(0xAA050B14),
@@ -624,16 +618,21 @@ class _GameScreenState extends State<GameScreen> {
                             ? Stack(
                                 children: [
                                   const Positioned.fill(
-                                    child: GoogleMap(
-                                      mapType: MapType.normal,
-                                      initialCameraPosition: CameraPosition(
-                                        target: LatLng(20, 0),
-                                        zoom: 1.2,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            Color(0xFF15324A),
+                                            KuglaColors.midnight,
+                                            Color(0xFF1C534F),
+                                          ],
+                                        ),
                                       ),
-                                      zoomControlsEnabled: false,
-                                      myLocationButtonEnabled: false,
-                                      compassEnabled: false,
-                                      mapToolbarEnabled: false,
+                                      child: CustomPaint(
+                                        painter: _MiniMapPreviewPainter(),
+                                      ),
                                     ),
                                   ),
                                   Positioned.fill(
@@ -661,21 +660,25 @@ class _GameScreenState extends State<GameScreen> {
                                         onTap: canOpenMap
                                             ? () => _toggleMapExpanded(true)
                                             : null,
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(14),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(14),
                                           child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
-                                              _HudChip(
+                                              const _HudChip(
                                                 icon: Icons.place_rounded,
                                                 label: 'Map',
                                               ),
                                               Text(
-                                                'Tap to guess',
-                                                style: TextStyle(
+                                                canOpenMap
+                                                    ? 'Tap to guess'
+                                                    : _nativeMapAvailable
+                                                        ? 'Waiting for Street View'
+                                                        : 'Map unavailable on this build',
+                                                style: const TextStyle(
                                                   color: Colors.white,
                                                   fontWeight: FontWeight.w800,
                                                 ),
@@ -712,29 +715,51 @@ class _GameScreenState extends State<GameScreen> {
                                     Expanded(
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(24),
-                                        child: GoogleMap(
-                                          mapType: MapType.normal,
-                                          initialCameraPosition:
-                                              const CameraPosition(
-                                            target: LatLng(20, 0),
-                                            zoom: 1.2,
-                                          ),
-                                          onTap: (pos) =>
-                                              setState(() => _userGuess = pos),
-                                          markers: _userGuess == null
-                                              ? {}
-                                              : {
-                                                  Marker(
-                                                    markerId:
-                                                        const MarkerId('guess'),
-                                                    position: _userGuess!,
+                                        child: _nativeMapAvailable
+                                            ? map_view.GoogleMap(
+                                                mapType: map_view.MapType.normal,
+                                                initialCameraPosition:
+                                                    const map_view.CameraPosition(
+                                                  target: map_view.LatLng(20, 0),
+                                                  zoom: 1.2,
+                                                ),
+                                                onTap: (pos) => setState(
+                                                    () => _userGuess = pos),
+                                                markers: _userGuess == null
+                                                    ? {}
+                                                    : {
+                                                        map_view.Marker(
+                                                          markerId:
+                                                              const map_view.MarkerId(
+                                                                  'guess'),
+                                                          position:
+                                                              _userGuess!,
+                                                        ),
+                                                      },
+                                                zoomControlsEnabled: false,
+                                                myLocationButtonEnabled: false,
+                                                compassEnabled: false,
+                                                mapToolbarEnabled: false,
+                                              )
+                                            : const ColoredBox(
+                                                color: KuglaColors.midnight,
+                                                child: Center(
+                                                  child: Padding(
+                                                    padding: EdgeInsets.all(20),
+                                                    child: Text(
+                                                      'Google Maps is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable pin drops.',
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        height: 1.4,
+                                                      ),
+                                                    ),
                                                   ),
-                                                },
-                                          zoomControlsEnabled: false,
-                                          myLocationButtonEnabled: false,
-                                          compassEnabled: false,
-                                          mapToolbarEnabled: false,
-                                        ),
+                                                ),
+                                              ),
                                       ),
                                     ),
                                     const SizedBox(height: 14),
@@ -779,10 +804,10 @@ class _GameScreenState extends State<GameScreen> {
                                                 const SizedBox(width: 12),
                                                 Expanded(
                                                   child: FilledButton.icon(
-                                                    onPressed:
-                                                        _userGuess != null
-                                                            ? _onGuessPressed
-                                                            : null,
+                                                    onPressed: _nativeMapAvailable &&
+                                                            _userGuess != null
+                                                        ? _onGuessPressed
+                                                        : null,
                                                     icon: const Icon(
                                                       Icons
                                                           .check_circle_rounded,
@@ -1297,4 +1322,55 @@ class _ResultMapPainter extends CustomPainter {
       old.targetLng != targetLng ||
       old.guessLat != guessLat ||
       old.guessLng != guessLng;
+}
+
+class _MiniMapPreviewPainter extends CustomPainter {
+  const _MiniMapPreviewPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.10)
+      ..strokeWidth = 0.8;
+
+    for (var lng = -180; lng <= 180; lng += 45) {
+      final x = (lng + 180) / 360 * size.width;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+
+    for (var lat = -90; lat <= 90; lat += 30) {
+      final y = (90 - lat) / 180 * size.height;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final continentPaint = Paint()..color = Colors.white.withValues(alpha: 0.08);
+    canvas.drawOval(
+      Rect.fromLTWH(size.width * 0.08, size.height * 0.18, size.width * 0.20,
+          size.height * 0.44),
+      continentPaint,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(size.width * 0.34, size.height * 0.14, size.width * 0.22,
+          size.height * 0.20),
+      continentPaint,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(size.width * 0.46, size.height * 0.28, size.width * 0.18,
+          size.height * 0.38),
+      continentPaint,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(size.width * 0.68, size.height * 0.18, size.width * 0.20,
+          size.height * 0.28),
+      continentPaint,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(size.width * 0.78, size.height * 0.58, size.width * 0.10,
+          size.height * 0.12),
+      continentPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MiniMapPreviewPainter oldDelegate) => false;
 }
