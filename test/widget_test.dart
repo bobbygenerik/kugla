@@ -12,13 +12,13 @@ import 'package:kugla/app/app_shell.dart';
 
 void main() {
   testWidgets('app shell renders landing UI', (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      'has_seen_onboarding_v1': true,
+    });
     await tester.pumpWidget(const KuglaApp());
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
     expect(find.text('Mission Briefing'), findsNothing);
-    expect(find.textContaining('Play real missions.'), findsOneWidget);
+    expect(find.textContaining('Discover the unseen.'), findsOneWidget);
   });
 }

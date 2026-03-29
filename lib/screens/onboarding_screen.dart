@@ -213,63 +213,71 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           );
                         }
                         final page = _infoPages[index];
-                        return Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 680),
-                            child: GlassPanel(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 92,
-                                      height: 92,
-                                      decoration: BoxDecoration(
-                                        color: KuglaColors.cyan
-                                            .withValues(alpha: 0.14),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(page.icon,
-                                          size: 42,
-                                          color: KuglaColors.cyanSoft),
+                        return LayoutBuilder(
+                          builder: (context, constraints) => Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 680),
+                              child: GlassPanel(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minHeight: constraints.maxHeight - 16,
                                     ),
-                                    const SizedBox(height: 28),
-                                    Text(
-                                      page.title,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .headlineMedium
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.w900),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      page.body,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: KuglaColors.textMuted,
-                                        fontSize: 16,
-                                        height: 1.6,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 28),
-                                    const Wrap(
-                                      spacing: 10,
-                                      runSpacing: 10,
-                                      alignment: WrapAlignment.center,
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Chip(
-                                            label: Text(
-                                                'Street View expeditions')),
-                                        Chip(
-                                            label:
-                                                Text('Vault progression')),
+                                        Container(
+                                          width: 92,
+                                          height: 92,
+                                          decoration: BoxDecoration(
+                                            color: KuglaColors.cyan
+                                                .withValues(alpha: 0.14),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(page.icon,
+                                              size: 42,
+                                              color: KuglaColors.cyanSoft),
+                                        ),
+                                        const SizedBox(height: 28),
+                                        Text(
+                                          page.title,
+                                          textAlign: TextAlign.center,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineMedium
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.w900),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          page.body,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: KuglaColors.textMuted,
+                                            fontSize: 16,
+                                            height: 1.6,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 28),
+                                        const Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          alignment: WrapAlignment.center,
+                                          children: [
+                                            Chip(
+                                                label: Text(
+                                                    'Street View expeditions')),
+                                            Chip(
+                                                label:
+                                                    Text('Vault progression')),
+                                          ],
+                                        ),
                                       ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
