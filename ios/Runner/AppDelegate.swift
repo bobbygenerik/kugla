@@ -16,25 +16,22 @@ import GoogleMaps
       hasValidGoogleMapsKey = true
       GMSServices.provideAPIKey(apiKey)
     }
-    let launched = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    if let controller = window?.rootViewController as? FlutterViewController {
-      let channel = FlutterMethodChannel(
-        name: mapsConfigChannelName,
-        binaryMessenger: controller.binaryMessenger
-      )
-      channel.setMethodCallHandler { [weak self] call, result in
-        guard call.method == "isGoogleMapsAvailable" else {
-          result(FlutterMethodNotImplemented)
-          return
-        }
-        result(self?.hasValidGoogleMapsKey ?? false)
-      }
-    }
-    return launched
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    let channel = FlutterMethodChannel(
+      name: mapsConfigChannelName,
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "isGoogleMapsAvailable" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(self?.hasValidGoogleMapsKey ?? false)
+    }
   }
 
   private func isResolvableGoogleMapsApiKey(_ value: String) -> Bool {

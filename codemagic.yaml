@@ -6,6 +6,8 @@ workflows:
     integrations:
       app_store_connect: Tres App Store Connect
     environment:
+      groups:
+        - kugla_secrets
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.kugla.app
@@ -23,6 +25,12 @@ workflows:
 
       - name: Flutter pub get
         script: flutter pub get
+
+      - name: Write iOS maps secrets
+        script: |
+          cat > ios/Flutter/Secrets.xcconfig <<EOF
+          GMS_API_KEY=$GMS_API_KEY
+          EOF
 
       - name: Pod install
         script: find . -name "Podfile" -execdir pod install \;
