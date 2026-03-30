@@ -172,6 +172,22 @@ class _GameScreenState extends State<GameScreen> {
     _advanceOrFinish();
   }
 
+  Future<void> _handleStreetViewCreated(
+    street_view.StreetViewController controller,
+  ) async {
+    final location = await controller.getLocation();
+    if (!mounted) return;
+    if (location == null) {
+      _streetViewTimeout?.cancel();
+      setState(() {
+        _streetViewFailed = true;
+        _streetViewErrorMessage = 'Street View is not available at this location.';
+      });
+    } else {
+      _markStreetViewReady();
+    }
+  }
+
   void _handleStreetViewChange(
     street_view.StreetViewPanoramaLocation? location,
     Exception? error,
@@ -337,7 +353,7 @@ class _GameScreenState extends State<GameScreen> {
                       _currentSeed.longitude,
                     ),
                     initSource: street_view.StreetViewSource.def,
-                    onStreetViewCreated: (_) {},
+                    onStreetViewCreated: _handleStreetViewCreated,
                     onPanoramaChangeListener: _handleStreetViewChange,
                     streetNamesEnabled: widget.settings.showStreetNames,
                     userNavigationEnabled: widget.settings.allowMovement,
@@ -478,107 +494,6 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
             ),
-            // Overlays: loading and error, always on top and scrollable
-            if (_nativeMapAvailable && !_streetViewReady && !_streetViewFailed)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: Color(0xAA050B14),
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(color: KuglaColors.cyan),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'Locking onto Street View...',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            if (_streetViewFailed)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: const Color(0xD9050B14),
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: maxErrorWidth),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: KuglaColors.panel.withValues(alpha: 0.94),
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: KuglaColors.stroke),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: KuglaColors.amber,
-                                    size: 44,
-                                  ),
-                                  const SizedBox(height: 14),
-                                  const Text(
-                                    'Street View failed to load',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    _streetViewErrorMessage ??
-                                        'The panorama could not be opened for this round. Retry this location or skip to the next one.',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: KuglaColors.textMuted,
-                                      height: 1.45,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 12,
-                                    alignment: WrapAlignment.center,
-                                    children: [
-                                      FilledButton.icon(
-                                        onPressed: _retryRound,
-                                        icon: const Icon(Icons.refresh_rounded),
-                                        label: const Text('Retry round'),
-                                      ),
-                                      OutlinedButton.icon(
-                                        onPressed: _skipRound,
-                                        icon: const Icon(Icons.skip_next_rounded),
-                                        label: const Text('Skip round'),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -936,6 +851,107 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
           ),
+          // Overlays: always last so they render above the HUD
+          if (_nativeMapAvailable && !_streetViewReady && !_streetViewFailed)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0xAA050B14),
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: KuglaColors.cyan),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Locking onto Street View...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_streetViewFailed)
+            Positioned.fill(
+              child: ColoredBox(
+                color: const Color(0xD9050B14),
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: maxErrorWidth),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: KuglaColors.panel.withValues(alpha: 0.94),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: KuglaColors.stroke),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: KuglaColors.amber,
+                                  size: 44,
+                                ),
+                                const SizedBox(height: 14),
+                                const Text(
+                                  'Street View failed to load',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  _streetViewErrorMessage ??
+                                      'The panorama could not be opened for this round. Retry this location or skip to the next one.',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: KuglaColors.textMuted,
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    FilledButton.icon(
+                                      onPressed: _retryRound,
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: const Text('Retry round'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: _skipRound,
+                                      icon: const Icon(Icons.skip_next_rounded),
+                                      label: const Text('Skip round'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
