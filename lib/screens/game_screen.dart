@@ -313,11 +313,13 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final missionScore =
-        _results.fold<int>(0, (sum, result) => sum + result.score);
+      _results.fold<int>(0, (sum, result) => sum + result.score);
     final canOpenMap =
-        _streetViewReady && !_streetViewFailed && _nativeMapAvailable;
+      _streetViewReady && !_streetViewFailed && _nativeMapAvailable;
     final mapHeight = min(media.size.height * 0.56, 430.0);
-    final cluePanelWidth = min(media.size.width - 32, 440.0);
+    // Responsive max width for panels/overlays (90% of width, max 440)
+    final double maxPanelWidth = min(media.size.width * 0.9, 440.0);
+    final double maxErrorWidth = min(media.size.width * 0.92, 440.0);
 
     return Scaffold(
       backgroundColor: KuglaColors.deepSpace,
@@ -348,7 +350,7 @@ class _GameScreenState extends State<GameScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 420),
+                          constraints: BoxConstraints(maxWidth: maxPanelWidth),
                           child: const Text(
                             'Street View is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable missions.',
                             textAlign: TextAlign.center,
@@ -410,9 +412,9 @@ class _GameScreenState extends State<GameScreen> {
                 color: const Color(0xD9050B14),
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
+                      constraints: BoxConstraints(maxWidth: maxErrorWidth),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: KuglaColors.panel.withValues(alpha: 0.94),
@@ -420,7 +422,7 @@ class _GameScreenState extends State<GameScreen> {
                           border: Border.all(color: KuglaColors.stroke),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(20),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -478,7 +480,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
               child: Stack(
                 children: [
                   Column(
@@ -536,7 +538,7 @@ class _GameScreenState extends State<GameScreen> {
                       ),
                       const SizedBox(height: 10),
                       ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: cluePanelWidth),
+                        constraints: BoxConstraints(maxWidth: maxPanelWidth),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: KuglaColors.panel.withValues(alpha: 0.82),
@@ -544,7 +546,7 @@ class _GameScreenState extends State<GameScreen> {
                             border: Border.all(color: KuglaColors.stroke),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -911,13 +913,15 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
       icon = Icons.gps_off_rounded;
     }
 
+    final media = MediaQuery.of(context);
+    final double maxDialogWidth = min(media.size.width * 0.95, 480.0);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
+            constraints: BoxConstraints(maxWidth: maxDialogWidth),
             child: Container(
               decoration: BoxDecoration(
                 color: KuglaColors.panel,
