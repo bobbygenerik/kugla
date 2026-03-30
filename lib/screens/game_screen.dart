@@ -226,12 +226,11 @@ class _GameScreenState extends State<GameScreen> {
         map_view.LatLng(_currentSeed.latitude, _currentSeed.longitude);
     final distance = _calculateDistance(guess, target);
 
-    final int baseScore;
-    if (widget.gameMode == GameMode.landmarkLock) {
-      baseScore = max(0, (5000 - (distance * 2.5)).round());
-    } else {
-      baseScore = max(0, (5000 - (distance * 0.25)).round());
-    }
+
+    // Exponential drop-off: 5000 * exp(-distance/2000)
+    // This makes far-off guesses get very low points.
+    final double baseScoreRaw = 5000 * (distance >= 0 ? (distance < 20000 ? (distance == 0 ? 1.0 : (exp(-distance / 2000))) : 0.0) : 0.0);
+    final int baseScore = baseScoreRaw.round().clamp(0, 5000);
 
     final multiplier = widget.gameMode == GameMode.dailyPulse && _streak > 0
         ? _streakMultiplier()
