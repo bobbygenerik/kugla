@@ -19,7 +19,7 @@ class RemoteSyncService {
     if (_initialized) return;
     _initialized = true;
 
-    const enabled = bool.fromEnvironment('FIREBASE_ENABLED', defaultValue: false);
+    const enabled = bool.fromEnvironment('FIREBASE_ENABLED', defaultValue: true);
     if (!enabled) {
       _enabled = false;
       return;

@@ -6,7 +6,7 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const enabled = bool.fromEnvironment('FIREBASE_ENABLED', defaultValue: false);
+  const enabled = bool.fromEnvironment('FIREBASE_ENABLED', defaultValue: true);
   if (enabled) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
