@@ -72,10 +72,10 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               const SectionHeader(
-                eyebrow: 'Modes',
-                title: 'Choose your next drop',
+                eyebrow: 'Routes',
+                title: 'Pick how you want to play',
                 subtitle:
-                    'Each route tunes timers, telemetry, and reward pacing differently.',
+                    'Timers, streak bonuses, and scoring change with each mode.',
               ),
               const SizedBox(height: 16),
               ...missionModes.map(
@@ -106,10 +106,14 @@ class _HeroMissionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: KuglaColors.stroke),
         gradient: const LinearGradient(
-          colors: [Color(0xFF163152), Color(0xFF0A1323), Color(0xFF17162E)],
+          colors: [
+            KuglaColors.panelRaised,
+            KuglaColors.midnight,
+            Color(0xFF1F1A16),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -137,15 +141,16 @@ class _HeroMissionPanel extends StatelessWidget {
             ),
             const SizedBox(height: 22),
             Text(
-              'Discover the unseen.\nChart the world by instinct.',
+              'You see the ground.\nPlace the grid.',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    height: 1.06,
+                    fontWeight: FontWeight.w800,
+                    height: 1.08,
+                    letterSpacing: -0.3,
                   ),
             ),
             const SizedBox(height: 14),
             const Text(
-              'Drop into real Street View locations around the world and use roads, terrain, and architecture to pinpoint where you are.',
+              'Real Street View rounds: read roads, terrain, and façades, then drop one pin on the map.',
               style: TextStyle(
                 color: KuglaColors.textMuted,
                 fontSize: 15,
@@ -210,7 +215,7 @@ class _MissionModeCard extends StatelessWidget {
                 Text(
                   mode.subtitle,
                   style: const TextStyle(
-                    color: KuglaColors.cyan,
+                    color: KuglaColors.amber,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

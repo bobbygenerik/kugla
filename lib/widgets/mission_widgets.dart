@@ -28,8 +28,8 @@ class SectionHeader extends StatelessWidget {
               Text(
                 eyebrow.toUpperCase(),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: KuglaColors.cyan,
-                      letterSpacing: 1.8,
+                      color: KuglaColors.amber,
+                      letterSpacing: 2.0,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -74,8 +74,8 @@ class GlassPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: color ?? KuglaColors.panel.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(24),
+        color: color ?? KuglaColors.panel.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: KuglaColors.stroke),
       ),
       child: Padding(
@@ -112,7 +112,7 @@ class TelemetryTile extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: accent),
           ),

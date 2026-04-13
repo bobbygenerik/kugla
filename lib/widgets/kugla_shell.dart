@@ -76,17 +76,18 @@ class _KuglaTopBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Local-first geography missions',
+            'Street View drops · pin the globe',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: KuglaColors.textMuted,
+                  letterSpacing: 0.15,
                 ),
           ),
         ],
@@ -95,12 +96,15 @@ class _KuglaTopBar extends StatelessWidget implements PreferredSizeWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Container(
-            decoration: const BoxDecoration(
-              border: Border(
+            decoration: BoxDecoration(
+              border: const Border(
                 bottom: BorderSide(color: KuglaColors.stroke),
               ),
               gradient: LinearGradient(
-                colors: [Color(0xD90C1423), Color(0x990D1B2F)],
+                colors: [
+                  KuglaColors.deepSpace.withValues(alpha: 0.92),
+                  KuglaColors.midnight.withValues(alpha: 0.72),
+                ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -126,7 +130,7 @@ class _KuglaTopBar extends StatelessWidget implements PreferredSizeWidget {
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [KuglaColors.cyan, KuglaColors.lilac],
+                    colors: [KuglaColors.amber, KuglaColors.rose],
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -160,8 +164,8 @@ class _KuglaBottomBar extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
       decoration: BoxDecoration(
-        color: KuglaColors.midnight.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(28),
+        color: KuglaColors.midnight.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: KuglaColors.stroke),
         boxShadow: [
           BoxShadow(
@@ -176,7 +180,7 @@ class _KuglaBottomBar extends StatelessWidget {
         height: 74,
         selectedIndex: currentIndex,
         onDestinationSelected: onTap,
-        indicatorColor: KuglaColors.cyan.withValues(alpha: 0.16),
+        indicatorColor: KuglaColors.cyan.withValues(alpha: 0.12),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(
@@ -213,7 +217,11 @@ class _NebulaBackdrop extends StatelessWidget {
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF050B14), Color(0xFF0D1B2F), Color(0xFF111F35)],
+          colors: [
+            KuglaColors.deepSpace,
+            KuglaColors.midnight,
+            Color(0xFF141210),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -221,27 +229,27 @@ class _NebulaBackdrop extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            top: -80,
-            left: -30,
+            top: -100,
+            left: -20,
             child: _GlowOrb(
-              color: KuglaColors.cyan.withValues(alpha: 0.18),
-              size: 240,
+              color: KuglaColors.amber.withValues(alpha: 0.07),
+              size: 260,
             ),
           ),
           Positioned(
-            right: -40,
-            top: 120,
+            right: -60,
+            top: 100,
             child: _GlowOrb(
-              color: KuglaColors.lilac.withValues(alpha: 0.14),
+              color: KuglaColors.success.withValues(alpha: 0.06),
+              size: 200,
+            ),
+          ),
+          Positioned(
+            bottom: -80,
+            left: 40,
+            child: _GlowOrb(
+              color: KuglaColors.cyan.withValues(alpha: 0.05),
               size: 220,
-            ),
-          ),
-          Positioned(
-            bottom: -70,
-            left: 80,
-            child: _GlowOrb(
-              color: KuglaColors.amber.withValues(alpha: 0.12),
-              size: 180,
             ),
           ),
         ],

@@ -20,8 +20,8 @@ class StreetViewPanoramaOrientation {
   /// Put all param to a map
   Map<String, dynamic> toMap() {
     final Map<String, dynamic> map = <String, dynamic>{};
-    putToMapIfNonNull(map, 'bearing', this.bearing);
-    putToMapIfNonNull(map, 'tilt', this.tilt);
+    putToMapIfNonNull(map, 'bearing', bearing);
+    putToMapIfNonNull(map, 'tilt', tilt);
     return map;
   }
 

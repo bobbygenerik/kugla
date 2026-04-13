@@ -52,14 +52,15 @@ class _AppShellState extends State<AppShell> {
     final snapshot = await _store.load();
     final firstLaunch = !await _store.hasSeenOnboarding();
     if (_remote.isEnabled) {
-      await _remote.syncProfile(settings: snapshot.settings, snapshot: snapshot);
+      await _remote.syncProfile(
+          settings: snapshot.settings, snapshot: snapshot);
     }
     if (!mounted) return;
     setState(() => _snapshot = snapshot);
     if (firstLaunch) {
       await _store.markOnboardingSeen();
-      WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _openOnboarding(firstLaunch: true));
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _openOnboarding(firstLaunch: true));
     }
   }
 
@@ -72,7 +73,11 @@ class _AppShellState extends State<AppShell> {
     if (snapshot == null) return;
     final session = await Navigator.of(context).push<MissionSession>(
       MaterialPageRoute<MissionSession>(
-        builder: (_) => GameScreen(settings: snapshot.settings, gameMode: mode),
+        builder: (_) => GameScreen(
+          settings: snapshot.settings,
+          gameMode: mode,
+          seenLocationIds: snapshot.seenLocationIds(),
+        ),
       ),
     );
     if (!mounted || session == null) return;
@@ -101,8 +106,7 @@ class _AppShellState extends State<AppShell> {
           onProfileSaved: firstLaunch
               ? (settings) async {
                   if (snapshot == null) return;
-                  final updated =
-                      await _store.saveSettings(snapshot, settings);
+                  final updated = await _store.saveSettings(snapshot, settings);
                   if (!mounted) return;
                   setState(() => _snapshot = updated);
                 }
@@ -149,7 +153,8 @@ class _AppShellState extends State<AppShell> {
         title: 'MISSION RECORDS',
         screen: LeaderboardScreen(
           snapshot: snapshot,
-          remoteLeaderboard: _remote.watchLeaderboard(snapshot.settings.familyCode),
+          remoteLeaderboard:
+              _remote.watchLeaderboard(snapshot.settings.familyCode),
           remoteEnabled: _remote.isEnabled,
         ),
       ),

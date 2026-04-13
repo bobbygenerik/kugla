@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import '../app/theme.dart';
 
 class AppSettings {
   final String displayName;
@@ -299,8 +302,7 @@ class AppSnapshot {
           .reduce((a, b) => a > b ? a : b);
 
   int bestSessionScoreForMode(GameMode mode) {
-    final modeSessions =
-        sessions.where((s) => s.gameMode == mode).toList();
+    final modeSessions = sessions.where((s) => s.gameMode == mode).toList();
     if (modeSessions.isEmpty) return 0;
     return modeSessions
         .map((s) => s.totalScore)
@@ -329,6 +331,34 @@ class AppSnapshot {
     final copy = [...sessions];
     copy.sort((a, b) => b.completedAt.compareTo(a.completedAt));
     return copy;
+  }
+
+  List<String> recentLocationIds({int limit = 12}) {
+    final seen = <String>{};
+    final ids = <String>[];
+    for (final session in recentSessions) {
+      for (final round in session.rounds.reversed) {
+        if (seen.add(round.locationId)) {
+          ids.add(round.locationId);
+          if (ids.length >= limit) return ids;
+        }
+      }
+    }
+    return ids;
+  }
+
+  List<String> seenLocationIds({int? limit}) {
+    final seen = <String>{};
+    final ids = <String>[];
+    for (final session in recentSessions) {
+      for (final round in session.rounds.reversed) {
+        if (seen.add(round.locationId)) {
+          ids.add(round.locationId);
+          if (limit != null && ids.length >= limit) return ids;
+        }
+      }
+    }
+    return ids;
   }
 
   List<MissionSession> get bestSessions {
@@ -382,7 +412,7 @@ class AppSnapshot {
         progress: _ratio(totalSessions, 1),
         unlocked: totalSessions >= 1,
         icon: Icons.rocket_launch_rounded,
-        color: const Color(0xFF61E6E8),
+        color: KuglaColors.cyan,
       ),
       AchievementProgress(
         title: 'Sharp Eye',
@@ -391,7 +421,7 @@ class AppSnapshot {
         progress: _ratio(totalPerfectishRounds, 3),
         unlocked: totalPerfectishRounds >= 3,
         icon: Icons.track_changes_rounded,
-        color: const Color(0xFFFFC86B),
+        color: KuglaColors.amber,
       ),
       AchievementProgress(
         title: 'Road Warrior',
@@ -400,7 +430,7 @@ class AppSnapshot {
         progress: _ratio(totalRounds, 10),
         unlocked: totalRounds >= 10,
         icon: Icons.route_rounded,
-        color: const Color(0xFFB6A9FF),
+        color: KuglaColors.lilac,
       ),
       AchievementProgress(
         title: 'World Sampler',
@@ -418,7 +448,7 @@ class AppSnapshot {
         progress: _ratio(eliteSessions, 2),
         unlocked: eliteSessions >= 2,
         icon: Icons.emoji_events_rounded,
-        color: const Color(0xFF7AB6FF),
+        color: const Color(0xFF7D9AAA),
       ),
     ];
   }
@@ -449,7 +479,8 @@ const landmarkSeeds = <LocationSeed>[
     country: 'France',
     latitude: 48.8584,
     longitude: 2.2945,
-    clue: 'An iron lattice tower on the Champ de Mars, overlooking a capital city on a wide river.',
+    clue:
+        'An iron lattice tower on the Champ de Mars, overlooking a capital city on a wide river.',
   ),
   LocationSeed(
     id: 'colosseum',
@@ -458,7 +489,8 @@ const landmarkSeeds = <LocationSeed>[
     country: 'Italy',
     latitude: 41.8902,
     longitude: 12.4922,
-    clue: 'An ancient oval amphitheatre of volcanic stone in the heart of a former imperial capital.',
+    clue:
+        'An ancient oval amphitheatre of volcanic stone in the heart of a former imperial capital.',
   ),
   LocationSeed(
     id: 'taj_mahal',
@@ -467,7 +499,8 @@ const landmarkSeeds = <LocationSeed>[
     country: 'India',
     latitude: 27.1751,
     longitude: 78.0421,
-    clue: 'A white marble mausoleum on a river, flanked by four minarets, built by a grieving emperor.',
+    clue:
+        'A white marble mausoleum on a river, flanked by four minarets, built by a grieving emperor.',
   ),
   LocationSeed(
     id: 'sydney_opera_house',
@@ -476,7 +509,8 @@ const landmarkSeeds = <LocationSeed>[
     country: 'Australia',
     latitude: -33.8568,
     longitude: 151.2153,
-    clue: 'Shell-shaped roof forms on a harbour peninsula in a major coastal city.',
+    clue:
+        'Shell-shaped roof forms on a harbour peninsula in a major coastal city.',
   ),
   LocationSeed(
     id: 'sagrada_familia',
@@ -485,7 +519,8 @@ const landmarkSeeds = <LocationSeed>[
     country: 'Spain',
     latitude: 41.4036,
     longitude: 2.1744,
-    clue: 'An unfinished basilica with towering organic spires, under continuous construction for over a century.',
+    clue:
+        'An unfinished basilica with towering organic spires, under continuous construction for over a century.',
   ),
   LocationSeed(
     id: 'statue_of_liberty',
@@ -494,7 +529,8 @@ const landmarkSeeds = <LocationSeed>[
     country: 'United States',
     latitude: 40.6892,
     longitude: -74.0445,
-    clue: 'A neoclassical copper statue on a small island in a harbour at the mouth of a major estuary.',
+    clue:
+        'A neoclassical copper statue on a small island in a harbour at the mouth of a major estuary.',
   ),
   LocationSeed(
     id: 'golden_gate_bridge',
@@ -503,7 +539,8 @@ const landmarkSeeds = <LocationSeed>[
     country: 'United States',
     latitude: 37.8199,
     longitude: -122.4783,
-    clue: 'A bold orange-red suspension bridge spanning the entrance to a large bay.',
+    clue:
+        'A bold orange-red suspension bridge spanning the entrance to a large bay.',
   ),
   LocationSeed(
     id: 'big_ben',
@@ -512,135 +549,362 @@ const landmarkSeeds = <LocationSeed>[
     country: 'United Kingdom',
     latitude: 51.5007,
     longitude: -0.1246,
-    clue: 'A Gothic Revival parliament complex with a famous clock tower, beside a tidal river.',
+    clue:
+        'A Gothic Revival parliament complex with a famous clock tower, beside a tidal river.',
   ),
 ];
 
-const streetViewSeeds = <LocationSeed>[
-  LocationSeed(
-    id: 'us_residential_grid',
-    name: 'Residential grid',
+final streetViewSeeds = _buildStreetViewSeeds();
+
+class _StreetViewAnchor {
+  final String id;
+  final String label;
+  final String city;
+  final String country;
+  final double latitude;
+  final double longitude;
+  final String clue;
+  final int variantCount;
+  final double latRadius;
+  final double lngRadius;
+
+  const _StreetViewAnchor({
+    required this.id,
+    required this.label,
+    required this.city,
+    required this.country,
+    required this.latitude,
+    required this.longitude,
+    required this.clue,
+    this.variantCount = 36,
+    this.latRadius = 0.045,
+    this.lngRadius = 0.06,
+  });
+}
+
+List<LocationSeed> _buildStreetViewSeeds() {
+  final seeds = <LocationSeed>[];
+  for (final anchor in _streetViewAnchors) {
+    for (var i = 0; i < anchor.variantCount; i++) {
+      final point = _offsetPoint(anchor, i);
+      seeds.add(
+        LocationSeed(
+          id: '${anchor.id}_${i + 1}',
+          name: '${anchor.label} ${i + 1}',
+          city: anchor.city,
+          country: anchor.country,
+          latitude: point.$1,
+          longitude: point.$2,
+          clue: anchor.clue,
+        ),
+      );
+    }
+  }
+  return List.unmodifiable(seeds);
+}
+
+(double, double) _offsetPoint(_StreetViewAnchor anchor, int index) {
+  final ring = index ~/ 6 + 1;
+  final spoke = index % 6;
+  final angle = (math.pi * 2 * spoke) / 6 + (ring.isEven ? math.pi / 6 : 0);
+  final radialProgress = ring / ((anchor.variantCount / 6).ceil() + 1);
+  final latOffset = math.sin(angle) * anchor.latRadius * radialProgress;
+  final lngOffset = math.cos(angle) * anchor.lngRadius * radialProgress;
+  final jitterLat = ((index % 3) - 1) * 0.0016;
+  final jitterLng = (((index + 1) % 3) - 1) * 0.0019;
+  return (
+    anchor.latitude + latOffset + jitterLat,
+    anchor.longitude + lngOffset + jitterLng
+  );
+}
+
+const _streetViewAnchors = <_StreetViewAnchor>[
+  _StreetViewAnchor(
+    id: 'des_moines',
+    label: 'Residential grid',
     city: 'Des Moines',
     country: 'United States',
     latitude: 41.5943,
     longitude: -93.6157,
-    clue: 'Detached homes, wide streets, and a tidy grid layout in a flat inland city.',
+    clue:
+        'Detached homes, wide streets, and a tidy grid layout in a flat inland city.',
   ),
-  LocationSeed(
-    id: 'canada_suburb',
-    name: 'Suburban arterial',
+  _StreetViewAnchor(
+    id: 'ottawa',
+    label: 'Suburban arterial',
     city: 'Ottawa',
     country: 'Canada',
     latitude: 45.4211,
     longitude: -75.6903,
-    clue: 'Broad lanes, low-rise commercial strips, and a cold-climate suburban feel.',
+    clue:
+        'Broad lanes, low-rise commercial strips, and a cold-climate suburban feel.',
   ),
-  LocationSeed(
-    id: 'uk_row_houses',
-    name: 'Terraced street',
+  _StreetViewAnchor(
+    id: 'manchester',
+    label: 'Terraced street',
     city: 'Manchester',
     country: 'United Kingdom',
     latitude: 53.4806,
     longitude: -2.2426,
-    clue: 'Compact streets, older brick terrace housing, and left-side driving.',
+    clue:
+        'Compact streets, older brick terrace housing, and left-side driving.',
   ),
-  LocationSeed(
-    id: 'france_roundabout_edge',
-    name: 'Town edge road',
-    city: 'Strasbourg',
+  _StreetViewAnchor(
+    id: 'lyon',
+    label: 'Neighborhood avenue',
+    city: 'Lyon',
     country: 'France',
-    latitude: 48.5730,
-    longitude: 7.7520,
-    clue: 'Distinct lane markings and roadside design on the outskirts of a city.',
+    latitude: 45.7640,
+    longitude: 4.8357,
+    clue:
+        'Mid-rise apartment blocks, practical streetscape details, and a distinctly French urban feel.',
   ),
-  LocationSeed(
-    id: 'italy_neighborhood',
-    name: 'Neighborhood street',
+  _StreetViewAnchor(
+    id: 'milan',
+    label: 'Neighborhood street',
     city: 'Milan',
     country: 'Italy',
     latitude: 45.4640,
     longitude: 9.1895,
     clue: 'Tight streets, close-set buildings, and dense urban blocks.',
   ),
-  LocationSeed(
-    id: 'spain_mixed_block',
-    name: 'Mixed-use block',
+  _StreetViewAnchor(
+    id: 'valencia',
+    label: 'Mixed-use block',
     city: 'Valencia',
     country: 'Spain',
     latitude: 39.4702,
     longitude: -0.3768,
-    clue: 'City blocks with balconies, colourful signage, and narrower streets.',
+    clue:
+        'City blocks with balconies, colourful signage, and narrower streets.',
   ),
-  LocationSeed(
-    id: 'japan_side_street',
-    name: 'Side street',
+  _StreetViewAnchor(
+    id: 'tokyo',
+    label: 'Side street',
     city: 'Tokyo',
     country: 'Japan',
     latitude: 35.6899,
     longitude: 139.7006,
-    clue: 'Dense streets with compact buildings, vending machines, and frequent overhead wiring.',
+    clue:
+        'Dense streets with compact buildings, vending machines, and frequent overhead wiring.',
+    variantCount: 48,
+    latRadius: 0.055,
+    lngRadius: 0.07,
   ),
-  LocationSeed(
-    id: 'australia_local_road',
-    name: 'Local road',
+  _StreetViewAnchor(
+    id: 'melbourne',
+    label: 'Local road',
     city: 'Melbourne',
     country: 'Australia',
     latitude: -37.8138,
     longitude: 144.9690,
-    clue: 'Left-side driving, low-rise streets, and a mix of brick homes and shops.',
+    clue:
+        'Left-side driving, low-rise streets, and a mix of brick homes and shops.',
   ),
-  LocationSeed(
-    id: 'new_zealand_suburban',
-    name: 'Suburban street',
+  _StreetViewAnchor(
+    id: 'wellington',
+    label: 'Suburban street',
     city: 'Wellington',
     country: 'New Zealand',
     latitude: -41.2862,
     longitude: 174.7762,
-    clue: 'Left-side driving, hilly residential streets, and modest timber-clad homes.',
+    clue:
+        'Left-side driving, hilly residential streets, and modest timber-clad homes.',
   ),
-  LocationSeed(
-    id: 'brazil_avenue',
-    name: 'Urban avenue',
-    city: 'São Paulo',
+  _StreetViewAnchor(
+    id: 'sao_paulo',
+    label: 'Urban avenue',
+    city: 'Sao Paulo',
     country: 'Brazil',
     latitude: -23.5508,
     longitude: -46.6333,
-    clue: 'Busy city fabric with dense traffic, colourful storefronts, and overhead cables.',
+    clue:
+        'Busy city fabric with dense traffic, colourful storefronts, and overhead cables.',
+    variantCount: 42,
   ),
-  LocationSeed(
-    id: 'mexico_neighborhood',
-    name: 'Neighborhood corner',
+  _StreetViewAnchor(
+    id: 'guadalajara',
+    label: 'Neighborhood corner',
     city: 'Guadalajara',
     country: 'Mexico',
     latitude: 20.6734,
     longitude: -103.3442,
-    clue: 'A high-activity street with compact storefronts, utility lines, and vivid painted walls.',
+    clue:
+        'A high-activity street with compact storefronts, utility lines, and vivid painted walls.',
   ),
-  LocationSeed(
-    id: 'south_africa_residential',
-    name: 'Residential road',
+  _StreetViewAnchor(
+    id: 'johannesburg',
+    label: 'Residential road',
     city: 'Johannesburg',
     country: 'South Africa',
     latitude: -26.2047,
     longitude: 28.0462,
-    clue: 'Sunny neighbourhood streets with left-side driving and a suburban layout.',
+    clue:
+        'Sunny neighbourhood streets with left-side driving and a suburban layout.',
   ),
-  LocationSeed(
-    id: 'chile_city_slope',
-    name: 'City slope',
+  _StreetViewAnchor(
+    id: 'santiago',
+    label: 'City slope',
     city: 'Santiago',
     country: 'Chile',
     latitude: -33.4483,
     longitude: -70.6693,
-    clue: 'A drier urban setting with hills, mixed low-rise buildings, and dusty wide streets.',
+    clue:
+        'A drier urban setting with hills, mixed low-rise buildings, and dusty wide streets.',
   ),
-  LocationSeed(
-    id: 'ireland_small_town',
-    name: 'Town road',
+  _StreetViewAnchor(
+    id: 'dublin',
+    label: 'Town road',
     city: 'Dublin',
     country: 'Ireland',
     latitude: 53.3496,
     longitude: -6.2603,
-    clue: 'Left-side driving, modest painted storefronts, and a cool overcast feel.',
+    clue:
+        'Left-side driving, modest painted storefronts, and a cool overcast feel.',
+  ),
+  _StreetViewAnchor(
+    id: 'berlin',
+    label: 'Urban block',
+    city: 'Berlin',
+    country: 'Germany',
+    latitude: 52.5208,
+    longitude: 13.4095,
+    clue:
+        'Broad streets, practical facades, bike infrastructure, and a central European city rhythm.',
+  ),
+  _StreetViewAnchor(
+    id: 'amsterdam',
+    label: 'Canal-side street',
+    city: 'Amsterdam',
+    country: 'Netherlands',
+    latitude: 52.3678,
+    longitude: 4.8936,
+    clue:
+        'Narrow brick homes, bikes everywhere, and water never far from view.',
+  ),
+  _StreetViewAnchor(
+    id: 'copenhagen',
+    label: 'Residential lane',
+    city: 'Copenhagen',
+    country: 'Denmark',
+    latitude: 55.6769,
+    longitude: 12.5681,
+    clue:
+        'Clean streets, cycle-friendly design, and restrained Scandinavian streetscape details.',
+  ),
+  _StreetViewAnchor(
+    id: 'lisbon',
+    label: 'Hillside street',
+    city: 'Lisbon',
+    country: 'Portugal',
+    latitude: 38.7227,
+    longitude: -9.1393,
+    clue:
+        'Sloping streets, light-toned facades, compact cars, and a sunny Atlantic-city feel.',
+  ),
+  _StreetViewAnchor(
+    id: 'krakow',
+    label: 'City street',
+    city: 'Krakow',
+    country: 'Poland',
+    latitude: 50.0618,
+    longitude: 19.9373,
+    clue:
+        'Mixed older blocks, trams nearby, and a central European street pattern.',
+  ),
+  _StreetViewAnchor(
+    id: 'buenos_aires',
+    label: 'Neighborhood avenue',
+    city: 'Buenos Aires',
+    country: 'Argentina',
+    latitude: -34.6034,
+    longitude: -58.3817,
+    clue:
+        'Long straight streets, gridded blocks, balconies, and a broad South American capital layout.',
+    variantCount: 42,
+  ),
+  _StreetViewAnchor(
+    id: 'mexico_city',
+    label: 'Capital block',
+    city: 'Mexico City',
+    country: 'Mexico',
+    latitude: 19.4328,
+    longitude: -99.1332,
+    clue:
+        'Dense blocks, busy sidewalks, and lots of street-level commerce at high elevation.',
+    variantCount: 42,
+  ),
+  _StreetViewAnchor(
+    id: 'seoul',
+    label: 'City corridor',
+    city: 'Seoul',
+    country: 'South Korea',
+    latitude: 37.5663,
+    longitude: 126.9779,
+    clue:
+        'Dense signage, compact vehicles, and a polished high-rise city backdrop.',
+    variantCount: 42,
+  ),
+  _StreetViewAnchor(
+    id: 'cape_town',
+    label: 'Residential slope',
+    city: 'Cape Town',
+    country: 'South Africa',
+    latitude: -33.9253,
+    longitude: 18.4239,
+    clue:
+        'Left-side driving, bright sun, and neighbourhood streets with dramatic terrain nearby.',
+  ),
+  _StreetViewAnchor(
+    id: 'brisbane',
+    label: 'Suburban collector',
+    city: 'Brisbane',
+    country: 'Australia',
+    latitude: -27.4691,
+    longitude: 153.0235,
+    clue:
+        'Warm-climate homes, left-side driving, and a relaxed suburban street layout.',
+  ),
+  _StreetViewAnchor(
+    id: 'chicago',
+    label: 'Grid avenue',
+    city: 'Chicago',
+    country: 'United States',
+    latitude: 41.8781,
+    longitude: -87.6298,
+    clue:
+        'Straight streets, brick mid-rises, and a big-lake city grid with strong neighborhood identity.',
+    variantCount: 42,
+  ),
+  _StreetViewAnchor(
+    id: 'osaka',
+    label: 'Commercial side street',
+    city: 'Osaka',
+    country: 'Japan',
+    latitude: 34.6937,
+    longitude: 135.5023,
+    clue:
+        'Tight streets, dense storefronts, and layered urban details in a major Japanese metro.',
+    variantCount: 42,
+  ),
+  _StreetViewAnchor(
+    id: 'madrid',
+    label: 'Apartment corridor',
+    city: 'Madrid',
+    country: 'Spain',
+    latitude: 40.4168,
+    longitude: -3.7038,
+    clue:
+        'Warm-toned facades, apartment blocks, and broad urban streets in a dry inland capital.',
+  ),
+  _StreetViewAnchor(
+    id: 'prague',
+    label: 'European block',
+    city: 'Prague',
+    country: 'Czech Republic',
+    latitude: 50.0755,
+    longitude: 14.4378,
+    clue:
+        'Older facades, tram-friendly streets, and dense central European blocks.',
   ),
 ];

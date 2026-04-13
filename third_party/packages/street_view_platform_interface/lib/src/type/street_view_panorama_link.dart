@@ -11,7 +11,7 @@ class StreetViewPanoramaLink {
 
   /// Create a [StreetViewPanoramaLink] and init data by a map.
   factory StreetViewPanoramaLink.fromMap(Map<String, dynamic> map) {
-    return new StreetViewPanoramaLink(
+    return StreetViewPanoramaLink(
       bearing: map['bearing'] as double?,
       panoId: map['panoId'] as String?,
     );
@@ -20,8 +20,8 @@ class StreetViewPanoramaLink {
   /// Put all param to a map
   Map<String, dynamic> toMap() {
     final Map<String, dynamic> map = <String, dynamic>{};
-    putToMapIfNonNull(map, 'bearing', this.bearing);
-    putToMapIfNonNull(map, 'panoId', this.panoId);
+    putToMapIfNonNull(map, 'bearing', bearing);
+    putToMapIfNonNull(map, 'panoId', panoId);
     return map;
   }
 

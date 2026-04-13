@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
 import 'app_state.dart';
 
 class MissionMode {
@@ -26,7 +27,7 @@ const missionModes = <MissionMode>[
     subtitle: 'Timed expedition',
     detail: 'Five fresh drops, live telemetry, bonus streak multipliers.',
     icon: Icons.flash_on_rounded,
-    color: Color(0xFF61E6E8),
+    color: KuglaColors.cyan,
     gameMode: GameMode.dailyPulse,
   ),
   MissionMode(
@@ -34,7 +35,7 @@ const missionModes = <MissionMode>[
     subtitle: 'Classic roaming',
     detail: 'Unlimited practice across every supported region and biome.',
     icon: Icons.public_rounded,
-    color: Color(0xFF7AB6FF),
+    color: Color(0xFF7D9AAA),
     gameMode: GameMode.worldAtlas,
   ),
   MissionMode(
@@ -42,7 +43,7 @@ const missionModes = <MissionMode>[
     subtitle: 'Precision route',
     detail: 'Famous places, tighter score windows, prestige badge rewards.',
     icon: Icons.terrain_rounded,
-    color: Color(0xFFFFC86B),
+    color: KuglaColors.amber,
     gameMode: GameMode.landmarkLock,
   ),
 ];

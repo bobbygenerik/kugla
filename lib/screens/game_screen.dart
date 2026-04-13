@@ -15,11 +15,13 @@ const _mapsConfigChannel = MethodChannel('kugla/maps_config');
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
   final GameMode gameMode;
+  final List<String> seenLocationIds;
 
   const GameScreen({
     super.key,
     required this.settings,
     this.gameMode = GameMode.worldAtlas,
+    this.seenLocationIds = const [],
   });
 
   @override
@@ -51,20 +53,10 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
-    final seedPool = widget.gameMode == GameMode.landmarkLock
-        ? landmarkSeeds
-        : streetViewSeeds;
     final roundCount = widget.gameMode == GameMode.worldAtlas
         ? widget.settings.roundsPerMission
         : 5;
-    if (widget.gameMode == GameMode.dailyPulse) {
-      final now = DateTime.now();
-      final dateSeed = now.year * 10000 + now.month * 100 + now.day;
-      _roundSeeds = [...seedPool]..shuffle(Random(dateSeed));
-    } else {
-      _roundSeeds = [...seedPool]..shuffle(_random);
-    }
-    _roundSeeds = _roundSeeds.take(roundCount).toList();
+    _roundSeeds = _buildRoundSeeds(roundCount);
     unawaited(_loadNativeMapAvailability());
     _beginRound();
   }
@@ -91,7 +83,11 @@ class _GameScreenState extends State<GameScreen> {
     _streetViewErrorMessage = null;
     final capturedGeneration = _streetViewGeneration;
     _streetViewTimeout = Timer(const Duration(seconds: 16), () {
-      if (!mounted || _streetViewReady || capturedGeneration != _streetViewGeneration) return;
+      if (!mounted ||
+          _streetViewReady ||
+          capturedGeneration != _streetViewGeneration) {
+        return;
+      }
       setState(() {
         _streetViewFailed = true;
         _streetViewErrorMessage =
@@ -102,9 +98,9 @@ class _GameScreenState extends State<GameScreen> {
 
   Future<void> _loadNativeMapAvailability() async {
     try {
-      final available =
-          await _mapsConfigChannel.invokeMethod<bool>('isGoogleMapsAvailable') ??
-              false;
+      final available = await _mapsConfigChannel
+              .invokeMethod<bool>('isGoogleMapsAvailable') ??
+          false;
       if (!mounted) return;
       setState(() {
         _nativeMapAvailable = available;
@@ -175,13 +171,21 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _handleStreetViewCreated(
     street_view.StreetViewController controller,
   ) async {
+    try {
+      await controller.setUserNavigationEnabled(widget.settings.allowMovement);
+      await controller.setZoomGesturesEnabled(true);
+      await controller.setPanningGesturesEnabled(true);
+    } catch (_) {
+      // Keep loading even if a platform gesture toggle is unsupported.
+    }
     final location = await controller.getLocation();
     if (!mounted) return;
     if (location == null) {
       _streetViewTimeout?.cancel();
       setState(() {
         _streetViewFailed = true;
-        _streetViewErrorMessage = 'Street View is not available at this location.';
+        _streetViewErrorMessage =
+            'Street View is not available at this location.';
       });
     } else {
       _markStreetViewReady();
@@ -219,6 +223,28 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  List<LocationSeed> _buildRoundSeeds(int roundCount) {
+    final seedPool = widget.gameMode == GameMode.landmarkLock
+        ? landmarkSeeds
+        : streetViewSeeds;
+    final shuffled = [...seedPool]..shuffle(_seedRandomizer());
+    final recentIds = widget.gameMode == GameMode.dailyPulse
+        ? const <String>{}
+        : widget.seenLocationIds.toSet();
+    final prioritized = <LocationSeed>[
+      ...shuffled.where((seed) => !recentIds.contains(seed.id)),
+      ...shuffled.where((seed) => recentIds.contains(seed.id)),
+    ];
+    return prioritized.take(roundCount).toList();
+  }
+
+  Random _seedRandomizer() {
+    if (widget.gameMode != GameMode.dailyPulse) return _random;
+    final now = DateTime.now();
+    final dateSeed = now.year * 10000 + now.month * 100 + now.day;
+    return Random(dateSeed);
+  }
+
   double _calculateDistance(map_view.LatLng p1, map_view.LatLng p2) {
     const radius = 6371.0;
     final dLat = _toRad(p2.latitude - p1.latitude);
@@ -242,10 +268,14 @@ class _GameScreenState extends State<GameScreen> {
         map_view.LatLng(_currentSeed.latitude, _currentSeed.longitude);
     final distance = _calculateDistance(guess, target);
 
-
     // Exponential drop-off: 5000 * exp(-distance/2000)
     // This makes far-off guesses get very low points.
-    final double baseScoreRaw = 5000 * (distance >= 0 ? (distance < 20000 ? (distance == 0 ? 1.0 : (exp(-distance / 2000))) : 0.0) : 0.0);
+    final double baseScoreRaw = 5000 *
+        (distance >= 0
+            ? (distance < 20000
+                ? (distance == 0 ? 1.0 : (exp(-distance / 2000)))
+                : 0.0)
+            : 0.0);
     final int baseScore = baseScoreRaw.round().clamp(0, 5000);
 
     final multiplier = widget.gameMode == GameMode.dailyPulse && _streak > 0
@@ -279,8 +309,7 @@ class _GameScreenState extends State<GameScreen> {
       barrierColor: Colors.black.withValues(alpha: 0.62),
       transitionDuration: const Duration(milliseconds: 360),
       transitionBuilder: (context, anim, _, child) {
-        final curved =
-            CurvedAnimation(parent: anim, curve: Curves.easeOutBack);
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutBack);
         return FadeTransition(
           opacity:
               CurvedAnimation(parent: anim, curve: const Interval(0, 0.55)),
@@ -326,11 +355,12 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final media = MediaQuery.of(context);
     final missionScore =
-      _results.fold<int>(0, (sum, result) => sum + result.score);
+        _results.fold<int>(0, (sum, result) => sum + result.score);
     final canOpenMap =
-      _streetViewReady && !_streetViewFailed && _nativeMapAvailable;
+        _streetViewReady && !_streetViewFailed && _nativeMapAvailable;
     final mapHeight = min(media.size.height * 0.56, 430.0);
     // Responsive max width for panels/overlays (90% of width, max 440)
     final double maxPanelWidth = min(media.size.width * 0.9, 440.0);
@@ -357,7 +387,7 @@ class _GameScreenState extends State<GameScreen> {
                     onPanoramaChangeListener: _handleStreetViewChange,
                     streetNamesEnabled: widget.settings.showStreetNames,
                     userNavigationEnabled: widget.settings.allowMovement,
-                    zoomGesturesEnabled: false,
+                    zoomGesturesEnabled: true,
                     panningGesturesEnabled: true,
                   )
                 : ColoredBox(
@@ -367,10 +397,10 @@ class _GameScreenState extends State<GameScreen> {
                         padding: const EdgeInsets.all(24),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: maxPanelWidth),
-                          child: const Text(
+                          child: Text(
                             'Street View is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable missions.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: textTheme.bodyLarge?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               height: 1.4,
@@ -381,7 +411,7 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
           ),
-          const Positioned.fill(
+          Positioned.fill(
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -389,21 +419,21 @@ class _GameScreenState extends State<GameScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xB0060D18),
-                      Color(0x3A08111F),
-                      Color(0x1408111F),
-                      Color(0xC408111F),
+                      const Color(0xB00E0C09),
+                      KuglaColors.deepSpace.withValues(alpha: 0.28),
+                      KuglaColors.deepSpace.withValues(alpha: 0.10),
+                      KuglaColors.midnight.withValues(alpha: 0.78),
                     ],
-                    stops: [0, 0.22, 0.55, 1],
+                    stops: const [0, 0.22, 0.55, 1],
                   ),
                 ),
               ),
             ),
           ),
           if (_nativeMapAvailable && !_streetViewReady && !_streetViewFailed)
-            const Positioned.fill(
+            Positioned.fill(
               child: ColoredBox(
-                color: Color(0xAA050B14),
+                color: KuglaColors.deepSpace.withValues(alpha: 0.67),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -412,7 +442,7 @@ class _GameScreenState extends State<GameScreen> {
                       SizedBox(height: 14),
                       Text(
                         'Locking onto Street View...',
-                        style: TextStyle(
+                        style: textTheme.titleSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                         ),
@@ -425,7 +455,7 @@ class _GameScreenState extends State<GameScreen> {
           if (_streetViewFailed)
             Positioned.fill(
               child: ColoredBox(
-                color: const Color(0xD9050B14),
+                color: KuglaColors.deepSpace.withValues(alpha: 0.85),
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -434,7 +464,7 @@ class _GameScreenState extends State<GameScreen> {
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: KuglaColors.panel.withValues(alpha: 0.94),
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: KuglaColors.stroke),
                         ),
                         child: Padding(
@@ -448,10 +478,10 @@ class _GameScreenState extends State<GameScreen> {
                                 size: 44,
                               ),
                               const SizedBox(height: 14),
-                              const Text(
+                              Text(
                                 'Street View failed to load',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: textTheme.titleLarge?.copyWith(
                                   color: Colors.white,
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
@@ -462,7 +492,7 @@ class _GameScreenState extends State<GameScreen> {
                                 _streetViewErrorMessage ??
                                     'The panorama could not be opened for this round. Retry this location or skip to the next one.',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: textTheme.bodyMedium?.copyWith(
                                   color: KuglaColors.textMuted,
                                   height: 1.45,
                                 ),
@@ -539,8 +569,7 @@ class _GameScreenState extends State<GameScreen> {
                                 begin: const Offset(0, -0.9),
                                 end: Offset.zero,
                               ).animate(CurvedAnimation(
-                                  parent: anim,
-                                  curve: Curves.easeOutCubic)),
+                                  parent: anim, curve: Curves.easeOutCubic)),
                               child:
                                   FadeTransition(opacity: anim, child: child),
                             ),
@@ -558,7 +587,7 @@ class _GameScreenState extends State<GameScreen> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: KuglaColors.panel.withValues(alpha: 0.82),
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(18),
                             border: Border.all(color: KuglaColors.stroke),
                           ),
                           child: Padding(
@@ -574,20 +603,17 @@ class _GameScreenState extends State<GameScreen> {
                                 const SizedBox(height: 10),
                                 Text(
                                   _currentSeed.clue,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.white,
-                                      ),
+                                  style: textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   widget.settings.allowMovement
                                       ? 'Free roam'
                                       : 'Locked view',
-                                  style: const TextStyle(
+                                  style: textTheme.labelLarge?.copyWith(
                                     color: KuglaColors.textMuted,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -619,7 +645,7 @@ class _GameScreenState extends State<GameScreen> {
                       decoration: BoxDecoration(
                         color: KuglaColors.panel.withValues(alpha: 0.94),
                         borderRadius:
-                            BorderRadius.circular(_mapExpanded ? 30 : 26),
+                            BorderRadius.circular(_mapExpanded ? 22 : 20),
                         border: Border.all(color: KuglaColors.stroke),
                         boxShadow: const [
                           BoxShadow(
@@ -631,7 +657,7 @@ class _GameScreenState extends State<GameScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius:
-                            BorderRadius.circular(_mapExpanded ? 30 : 26),
+                            BorderRadius.circular(_mapExpanded ? 22 : 20),
                         child: !_mapExpanded
                             ? Stack(
                                 children: [
@@ -642,9 +668,9 @@ class _GameScreenState extends State<GameScreen> {
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
                                           colors: [
-                                            Color(0xFF15324A),
+                                            Color(0xFF2A2520),
                                             KuglaColors.midnight,
-                                            Color(0xFF1C534F),
+                                            Color(0xFF1E2822),
                                           ],
                                         ),
                                       ),
@@ -696,7 +722,8 @@ class _GameScreenState extends State<GameScreen> {
                                                     : _nativeMapAvailable
                                                         ? 'Waiting for Street View'
                                                         : 'Map unavailable on this build',
-                                                style: const TextStyle(
+                                                style: textTheme.titleSmall
+                                                    ?.copyWith(
                                                   color: Colors.white,
                                                   fontWeight: FontWeight.w800,
                                                 ),
@@ -732,13 +759,16 @@ class _GameScreenState extends State<GameScreen> {
                                     const SizedBox(height: 14),
                                     Expanded(
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(24),
+                                        borderRadius: BorderRadius.circular(18),
                                         child: _nativeMapAvailable
                                             ? map_view.GoogleMap(
-                                                mapType: map_view.MapType.normal,
+                                                mapType:
+                                                    map_view.MapType.normal,
                                                 initialCameraPosition:
-                                                    const map_view.CameraPosition(
-                                                  target: map_view.LatLng(20, 0),
+                                                    const map_view
+                                                        .CameraPosition(
+                                                  target:
+                                                      map_view.LatLng(20, 0),
                                                   zoom: 1.2,
                                                 ),
                                                 onTap: (pos) => setState(
@@ -748,10 +778,10 @@ class _GameScreenState extends State<GameScreen> {
                                                     : {
                                                         map_view.Marker(
                                                           markerId:
-                                                              const map_view.MarkerId(
+                                                              const map_view
+                                                                  .MarkerId(
                                                                   'guess'),
-                                                          position:
-                                                              _userGuess!,
+                                                          position: _userGuess!,
                                                         ),
                                                       },
                                                 zoomControlsEnabled: false,
@@ -759,16 +789,19 @@ class _GameScreenState extends State<GameScreen> {
                                                 compassEnabled: false,
                                                 mapToolbarEnabled: false,
                                               )
-                                            : const ColoredBox(
+                                            : ColoredBox(
                                                 color: KuglaColors.midnight,
                                                 child: Center(
                                                   child: Padding(
-                                                    padding: EdgeInsets.all(20),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            20),
                                                     child: Text(
                                                       'Google Maps is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable pin drops.',
                                                       textAlign:
                                                           TextAlign.center,
-                                                      style: TextStyle(
+                                                      style: textTheme.bodyLarge
+                                                          ?.copyWith(
                                                         color: Colors.white,
                                                         fontWeight:
                                                             FontWeight.w700,
@@ -783,7 +816,8 @@ class _GameScreenState extends State<GameScreen> {
                                     const SizedBox(height: 14),
                                     DecoratedBox(
                                       decoration: BoxDecoration(
-                                        color: const Color(0xCC08111F),
+                                        color: KuglaColors.midnight
+                                            .withValues(alpha: 0.88),
                                         borderRadius: BorderRadius.circular(22),
                                         border: Border.all(
                                           color: KuglaColors.stroke,
@@ -799,7 +833,8 @@ class _GameScreenState extends State<GameScreen> {
                                               _userGuess == null
                                                   ? 'Tap anywhere on the map to place your guess.'
                                                   : 'Pinned at ${_userGuess!.latitude.toStringAsFixed(3)}, ${_userGuess!.longitude.toStringAsFixed(3)}',
-                                              style: const TextStyle(
+                                              style: textTheme.titleSmall
+                                                  ?.copyWith(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.w700,
                                               ),
@@ -822,10 +857,12 @@ class _GameScreenState extends State<GameScreen> {
                                                 const SizedBox(width: 12),
                                                 Expanded(
                                                   child: FilledButton.icon(
-                                                    onPressed: _nativeMapAvailable &&
-                                                            _userGuess != null
-                                                        ? _onGuessPressed
-                                                        : null,
+                                                    onPressed:
+                                                        _nativeMapAvailable &&
+                                                                _userGuess !=
+                                                                    null
+                                                            ? _onGuessPressed
+                                                            : null,
                                                     icon: const Icon(
                                                       Icons
                                                           .check_circle_rounded,
@@ -853,20 +890,20 @@ class _GameScreenState extends State<GameScreen> {
           ),
           // Overlays: always last so they render above the HUD
           if (_nativeMapAvailable && !_streetViewReady && !_streetViewFailed)
-            const Positioned.fill(
+            Positioned.fill(
               child: ColoredBox(
-                color: Color(0xAA050B14),
+                color: KuglaColors.deepSpace.withValues(alpha: 0.67),
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 12),
+                    padding: EdgeInsets.symmetric(vertical: 40, horizontal: 12),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         CircularProgressIndicator(color: KuglaColors.cyan),
-                        const SizedBox(height: 14),
-                        const Text(
+                        SizedBox(height: 14),
+                        Text(
                           'Locking onto Street View...',
-                          style: TextStyle(
+                          style: textTheme.titleSmall?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                           ),
@@ -880,10 +917,11 @@ class _GameScreenState extends State<GameScreen> {
           if (_streetViewFailed)
             Positioned.fill(
               child: ColoredBox(
-                color: const Color(0xD9050B14),
+                color: KuglaColors.deepSpace.withValues(alpha: 0.85),
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 40, horizontal: 12),
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: ConstrainedBox(
@@ -891,7 +929,7 @@ class _GameScreenState extends State<GameScreen> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: KuglaColors.panel.withValues(alpha: 0.94),
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: KuglaColors.stroke),
                           ),
                           child: Padding(
@@ -905,10 +943,10 @@ class _GameScreenState extends State<GameScreen> {
                                   size: 44,
                                 ),
                                 const SizedBox(height: 14),
-                                const Text(
+                                Text(
                                   'Street View failed to load',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
+                                  style: textTheme.titleLarge?.copyWith(
                                     color: Colors.white,
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
@@ -919,7 +957,7 @@ class _GameScreenState extends State<GameScreen> {
                                   _streetViewErrorMessage ??
                                       'The panorama could not be opened for this round. Retry this location or skip to the next one.',
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
+                                  style: textTheme.bodyMedium?.copyWith(
                                     color: KuglaColors.textMuted,
                                     height: 1.45,
                                   ),
@@ -1010,6 +1048,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final score = widget.result.score;
     final isLast = widget.roundIndex == widget.totalRounds - 1;
 
@@ -1042,7 +1081,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
             child: Container(
               decoration: BoxDecoration(
                 color: KuglaColors.panel,
-                borderRadius: BorderRadius.circular(36),
+                borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: accent.withValues(alpha: 0.45)),
                 boxShadow: [
                   BoxShadow(
@@ -1095,9 +1134,9 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                       },
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       '/ 5000',
-                      style: TextStyle(
+                      style: textTheme.bodyLarge?.copyWith(
                         color: KuglaColors.textMuted,
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
@@ -1128,7 +1167,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                       ),
                       child: Text(
                         label,
-                        style: TextStyle(
+                        style: textTheme.labelLarge?.copyWith(
                           color: accent,
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
@@ -1155,7 +1194,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                             const SizedBox(width: 5),
                             Text(
                               '${widget.streakLength}x streak · +${((widget.multiplier - 1) * 100).round()}% bonus',
-                              style: const TextStyle(
+                              style: textTheme.labelMedium?.copyWith(
                                 color: KuglaColors.amber,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
@@ -1176,15 +1215,15 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                           border: Border.all(
                               color: KuglaColors.amber.withValues(alpha: 0.25)),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.terrain_rounded,
+                            const Icon(Icons.terrain_rounded,
                                 size: 14, color: KuglaColors.amber),
-                            SizedBox(width: 5),
+                            const SizedBox(width: 5),
                             Text(
                               'Landmark Lock · precision scoring',
-                              style: TextStyle(
+                              style: textTheme.labelMedium?.copyWith(
                                 color: KuglaColors.amber,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
@@ -1225,7 +1264,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                         children: [
                           Text(
                             widget.result.locationName,
-                            style: const TextStyle(
+                            style: textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                             ),
@@ -1233,8 +1272,9 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                           const SizedBox(height: 2),
                           Text(
                             '${widget.city}, ${widget.result.country}',
-                            style: const TextStyle(
-                                color: KuglaColors.textMuted),
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: KuglaColors.textMuted,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -1244,7 +1284,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                               const SizedBox(width: 6),
                               Text(
                                 '${widget.result.distanceKm.toStringAsFixed(1)} km from target',
-                                style: const TextStyle(
+                                style: textTheme.bodySmall?.copyWith(
                                   color: KuglaColors.textMuted,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1264,8 +1304,8 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                               ? Icons.emoji_events_rounded
                               : Icons.arrow_forward_rounded,
                         ),
-                        label: Text(
-                            isLast ? 'See mission results' : 'Next round'),
+                        label:
+                            Text(isLast ? 'See mission results' : 'Next round'),
                         style: FilledButton.styleFrom(
                           backgroundColor: accent,
                           foregroundColor: KuglaColors.deepSpace,
@@ -1300,7 +1340,7 @@ class _HudChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xCC08111F),
+        color: KuglaColors.midnight.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: KuglaColors.stroke),
       ),
@@ -1313,10 +1353,10 @@ class _HudChip extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
           ],
         ),
@@ -1340,7 +1380,7 @@ class _HudIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xCC08111F),
+        color: KuglaColors.midnight.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: KuglaColors.stroke),
       ),
@@ -1410,7 +1450,7 @@ class _ResultMapPainter extends CustomPainter {
     canvas.drawCircle(
       targetPt,
       7,
-      Paint()..color = const Color(0xFF00E5CC),
+      Paint()..color = KuglaColors.amber,
     );
     canvas.drawCircle(
       targetPt,
@@ -1464,7 +1504,8 @@ class _MiniMapPreviewPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    final continentPaint = Paint()..color = Colors.white.withValues(alpha: 0.08);
+    final continentPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08);
     canvas.drawOval(
       Rect.fromLTWH(size.width * 0.08, size.height * 0.18, size.width * 0.20,
           size.height * 0.44),

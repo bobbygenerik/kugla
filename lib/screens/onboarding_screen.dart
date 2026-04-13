@@ -40,21 +40,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _infoPages = [
     (
-      title: 'Read the world like a navigator',
+      title: 'Treat every drop like a survey',
       body:
-          'Use roads, terrain, language, and architecture to triangulate each drop zone.',
+          'Signage, vegetation, road markings, and building style are all fair clues.',
       icon: Icons.travel_explore_rounded,
     ),
     (
-      title: 'Track live telemetry',
+      title: 'HUD stays out of your way',
       body:
-          'HUD modules surface streaks, accuracy, and seasonal progress while you play.',
+          'Timer, streak, and score sit up top; the panorama stays the main event.',
       icon: Icons.radar_rounded,
     ),
     (
-      title: 'Unlock the Star Vault',
+      title: 'Fill the vault over time',
       body:
-          'Complete missions to earn achievements and track your progress across every route you explore.',
+          'Missions add to your history, badges, and the places you have pinned.',
       icon: Icons.auto_awesome_mosaic_rounded,
     ),
   ];
@@ -163,9 +163,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Color(0xFF050B14),
-                  Color(0xFF111D34),
-                  Color(0xFF1B1630)
+                  KuglaColors.deepSpace,
+                  KuglaColors.midnight,
+                  Color(0xFF141210),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -368,7 +368,7 @@ class _ProfileSetupPage extends StatelessWidget {
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
-                            colors: [KuglaColors.cyan, KuglaColors.lilac],
+                            colors: [KuglaColors.amber, KuglaColors.rose],
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,

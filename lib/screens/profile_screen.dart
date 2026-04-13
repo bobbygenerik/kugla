@@ -130,7 +130,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
-                            colors: [KuglaColors.cyan, KuglaColors.lilac],
+                            colors: [KuglaColors.amber, KuglaColors.rose],
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,

@@ -5,8 +5,6 @@
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:meta/meta.dart' show immutable;
 
-import 'bitmap.dart';
-import 'maps_object.dart';
 import 'types.dart';
 
 /// Uniquely identifies a [Marker] among [StreetView] markers.
@@ -74,9 +72,11 @@ class Marker implements MapsObject {
   }
 
   /// Creates a new [Marker] object whose values are the same as this instance.
+  @override
   Marker clone() => copyWith();
 
   /// Converts this object to something serializable in JSON.
+  @override
   Object toJson() {
     final Map<String, Object> json = <String, Object>{};
 
