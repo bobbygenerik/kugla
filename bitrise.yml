@@ -20,6 +20,16 @@ workflows:
     - flutter-analyze@0:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+    - script@1:
+        title: Refresh cached JUnit helper
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+            PUB_CACHE_DIR="${HOME}/.pub-cache"
+            rm -f "${PUB_CACHE_DIR}/bin/tojunit"
+            rm -f "${PUB_CACHE_DIR}"/global_packages/junitreport/bin/*.snapshot
+            dart pub global activate junitreport
     - flutter-test@1:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
