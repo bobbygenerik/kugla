@@ -268,9 +268,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 const SizedBox(height: 8),
                 Text('${_settings.roundsPerMission} rounds'),
                 Slider(
-                  min: 3,
-                  max: 5,
-                  divisions: 2,
+                  min: kMinRoundsPerMission.toDouble(),
+                  max: kMaxRoundsPerMission.toDouble(),
+                  divisions: kMaxRoundsPerMission - kMinRoundsPerMission,
                   label: '${_settings.roundsPerMission}',
                   value: _settings.roundsPerMission.toDouble(),
                   onChanged: (value) => setState(

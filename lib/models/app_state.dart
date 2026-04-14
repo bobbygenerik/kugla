@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
 
+const int kMinRoundsPerMission = 3;
+const int kMaxRoundsPerMission = 10;
+
 class AppSettings {
   final String displayName;
   final String familyCode;
@@ -27,7 +30,7 @@ class AppSettings {
         familyCode = '',
         showStreetNames = false,
         allowMovement = true,
-        roundsPerMission = 3,
+        roundsPerMission = kMinRoundsPerMission,
         avatarPath = null;
 
   AppSettings copyWith({
@@ -43,7 +46,9 @@ class AppSettings {
       familyCode: familyCode ?? this.familyCode,
       showStreetNames: showStreetNames ?? this.showStreetNames,
       allowMovement: allowMovement ?? this.allowMovement,
-      roundsPerMission: roundsPerMission ?? this.roundsPerMission,
+      roundsPerMission: _clampRoundsPerMission(
+        roundsPerMission ?? this.roundsPerMission,
+      ),
       avatarPath:
           avatarPath == _unset ? this.avatarPath : avatarPath as String?,
     );
@@ -64,11 +69,16 @@ class AppSettings {
       familyCode: json['familyCode'] as String? ?? '',
       showStreetNames: json['showStreetNames'] as bool? ?? false,
       allowMovement: json['allowMovement'] as bool? ?? true,
-      roundsPerMission: json['roundsPerMission'] as int? ?? 3,
+      roundsPerMission: _clampRoundsPerMission(
+        json['roundsPerMission'] as int? ?? kMinRoundsPerMission,
+      ),
       avatarPath: json['avatarPath'] as String?,
     );
   }
 }
+
+int _clampRoundsPerMission(int value) =>
+    value.clamp(kMinRoundsPerMission, kMaxRoundsPerMission);
 
 const _unset = Object();
 

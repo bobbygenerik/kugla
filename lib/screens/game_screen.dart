@@ -46,6 +46,7 @@ class _GameScreenState extends State<GameScreen> {
   int _secondsLeft = 90;
   int _streak = 0;
   bool _nativeMapAvailable = false;
+  String? _nativeMapMessage;
 
   LocationSeed get _currentSeed => _roundSeeds[_roundIndex];
 
@@ -98,22 +99,30 @@ class _GameScreenState extends State<GameScreen> {
 
   Future<void> _loadNativeMapAvailability() async {
     try {
-      final available = await _mapsConfigChannel
-              .invokeMethod<bool>('isGoogleMapsAvailable') ??
+      final config = await _mapsConfigChannel
+          .invokeMapMethod<Object?, Object?>('getGoogleMapsConfig');
+      final available =
+          (config?['available'] as bool?) ??
+          await _mapsConfigChannel.invokeMethod<bool>('isGoogleMapsAvailable') ??
           false;
+      final message = config?['message'] as String?;
       if (!mounted) return;
       setState(() {
         _nativeMapAvailable = available;
+        _nativeMapMessage = message;
       });
     } on PlatformException {
       if (!mounted) return;
       setState(() {
         _nativeMapAvailable = false;
+        _nativeMapMessage =
+            'Google Maps is unavailable on this iOS build. Confirm ios/Flutter/Secrets.xcconfig exists and that GMS_API_KEY resolves inside Xcode.';
       });
     } on MissingPluginException {
       if (!mounted) return;
       setState(() {
         _nativeMapAvailable = true;
+        _nativeMapMessage = null;
       });
     }
   }
@@ -361,6 +370,8 @@ class _GameScreenState extends State<GameScreen> {
     final canOpenMap =
         _streetViewReady && !_streetViewFailed && _nativeMapAvailable;
     final mapHeight = min(media.size.height * 0.56, 430.0);
+    final missingMapsMessage = _nativeMapMessage ??
+        'Google Maps is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable missions.';
     // Responsive max width for panels/overlays (90% of width, max 440)
     final double maxPanelWidth = min(media.size.width * 0.9, 440.0);
     final double maxErrorWidth = min(media.size.width * 0.92, 440.0);
@@ -396,10 +407,10 @@ class _GameScreenState extends State<GameScreen> {
                         padding: const EdgeInsets.all(24),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: maxPanelWidth),
-                          child: const Text(
-                            'Street View is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable missions.',
+                          child: Text(
+                            missingMapsMessage,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               height: 1.4,
@@ -790,16 +801,18 @@ class _GameScreenState extends State<GameScreen> {
                                                 compassEnabled: false,
                                                 mapToolbarEnabled: false,
                                               )
-                                            : const ColoredBox(
+                                            : ColoredBox(
                                                 color: KuglaColors.midnight,
                                                 child: Center(
                                                   child: Padding(
-                                                    padding: EdgeInsets.all(20),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            20),
                                                     child: Text(
-                                                      'Google Maps is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable pin drops.',
+                                                      missingMapsMessage,
                                                       textAlign:
                                                           TextAlign.center,
-                                                      style: TextStyle(
+                                                      style: const TextStyle(
                                                         color: Colors.white,
                                                         fontWeight:
                                                             FontWeight.w700,
