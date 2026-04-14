@@ -19,6 +19,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mission Briefing'), findsNothing);
-    expect(find.textContaining('Discover the unseen.'), findsOneWidget);
+    expect(find.textContaining('You see the ground.'), findsOneWidget);
   });
 }
