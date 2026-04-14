@@ -28,40 +28,14 @@ workflows:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
         - platform: both
         - ios_output_type: archive
-    - deploy-to-bitrise-io@2: {}
-  primary:
-    description: |
-      Builds project and runs tests.
-
-      Next steps:
-      - Check out [Getting started with Flutter apps](https://docs.bitrise.io/en/bitrise-ci/getting-started/quick-start-guides/getting-started-with-flutter-projects.html).
-    steps:
-    - git-clone@8: {}
-    - flutter-installer@1:
+    - deploy-to-itunesconnect-application-loader@3:
         inputs:
-        - version: 3.41.6
-    - restore-dart-cache@3: {}
-    - script@1:
-        title: Refresh cached JUnit helper
-        inputs:
-        - content: |
-            #!/usr/bin/env bash
-            set -euo pipefail
-            PUB_CACHE_DIR="${HOME}/.pub-cache"
-            rm -f "${PUB_CACHE_DIR}/bin/tojunit"
-            rm -f "${PUB_CACHE_DIR}"/global_packages/junitreport/bin/*.snapshot
-            dart pub global activate junitreport
-    - flutter-test@1:
-        inputs:
-        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
-        - additional_params: "--dart-define=FIREBASE_ENABLED=false"
-    - save-dart-cache@1: {}
+        - itunescon_user: "$APPLE_ID"
+        - password: "$APP_SPECIFIC_PASSWORD"
     - deploy-to-bitrise-io@2: {}
     triggers:
-      push:
-      - branch: master
-      pull_request:
-      - source_branch: "*"
+      tag:
+      - name: "*"
 meta:
   bitrise.io:
     stack: osx-xcode-26.4.x
