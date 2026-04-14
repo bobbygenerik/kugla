@@ -39,6 +39,7 @@ workflows:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
         - platform: both
         - ios_output_type: archive
+        - ios_codesign_identity: "Apple Distribution: Robert Brown (QZ8H7RN9JD)"
     - deploy-to-itunesconnect-application-loader@2:
         inputs:
         - itunescon_user: "$APPLE_ID"
