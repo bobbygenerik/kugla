@@ -34,8 +34,8 @@ workflows:
         - password: "$APP_SPECIFIC_PASSWORD"
     - deploy-to-bitrise-io@2: {}
     triggers:
-      tag:
-      - name: "*"
+      push:
+      - branch: master
 meta:
   bitrise.io:
     stack: osx-xcode-26.4.x
