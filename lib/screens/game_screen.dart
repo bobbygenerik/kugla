@@ -15,13 +15,13 @@ const _mapsConfigChannel = MethodChannel('kugla/maps_config');
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
   final GameMode gameMode;
-  final List<String> seenLocationIds;
+  final List<String> recentLocationIds;
 
   const GameScreen({
     super.key,
     required this.settings,
     this.gameMode = GameMode.worldAtlas,
-    this.seenLocationIds = const [],
+    this.recentLocationIds = const [],
   });
 
   @override
@@ -230,7 +230,7 @@ class _GameScreenState extends State<GameScreen> {
     final shuffled = [...seedPool]..shuffle(_seedRandomizer());
     final recentIds = widget.gameMode == GameMode.dailyPulse
         ? const <String>{}
-        : widget.seenLocationIds.toSet();
+        : widget.recentLocationIds.toSet();
     final prioritized = <LocationSeed>[
       ...shuffled.where((seed) => !recentIds.contains(seed.id)),
       ...shuffled.where((seed) => recentIds.contains(seed.id)),
@@ -355,7 +355,6 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final media = MediaQuery.of(context);
     final missionScore =
         _results.fold<int>(0, (sum, result) => sum + result.score);
@@ -397,10 +396,10 @@ class _GameScreenState extends State<GameScreen> {
                         padding: const EdgeInsets.all(24),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: maxPanelWidth),
-                          child: Text(
+                          child: const Text(
                             'Street View is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable missions.',
                             textAlign: TextAlign.center,
-                            style: textTheme.bodyLarge?.copyWith(
+                            style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               height: 1.4,
@@ -434,7 +433,7 @@ class _GameScreenState extends State<GameScreen> {
             Positioned.fill(
               child: ColoredBox(
                 color: KuglaColors.deepSpace.withValues(alpha: 0.67),
-                child: Center(
+                child: const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -442,7 +441,7 @@ class _GameScreenState extends State<GameScreen> {
                       SizedBox(height: 14),
                       Text(
                         'Locking onto Street View...',
-                        style: textTheme.titleSmall?.copyWith(
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                         ),
@@ -478,10 +477,10 @@ class _GameScreenState extends State<GameScreen> {
                                 size: 44,
                               ),
                               const SizedBox(height: 14),
-                              Text(
+                              const Text(
                                 'Street View failed to load',
                                 textAlign: TextAlign.center,
-                                style: textTheme.titleLarge?.copyWith(
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
@@ -492,7 +491,7 @@ class _GameScreenState extends State<GameScreen> {
                                 _streetViewErrorMessage ??
                                     'The panorama could not be opened for this round. Retry this location or skip to the next one.',
                                 textAlign: TextAlign.center,
-                                style: textTheme.bodyMedium?.copyWith(
+                                style: const TextStyle(
                                   color: KuglaColors.textMuted,
                                   height: 1.45,
                                 ),
@@ -603,17 +602,20 @@ class _GameScreenState extends State<GameScreen> {
                                 const SizedBox(height: 10),
                                 Text(
                                   _currentSeed.clue,
-                                  style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   widget.settings.allowMovement
                                       ? 'Free roam'
                                       : 'Locked view',
-                                  style: textTheme.labelLarge?.copyWith(
+                                  style: const TextStyle(
                                     color: KuglaColors.textMuted,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -722,8 +724,7 @@ class _GameScreenState extends State<GameScreen> {
                                                     : _nativeMapAvailable
                                                         ? 'Waiting for Street View'
                                                         : 'Map unavailable on this build',
-                                                style: textTheme.titleSmall
-                                                    ?.copyWith(
+                                                style: const TextStyle(
                                                   color: Colors.white,
                                                   fontWeight: FontWeight.w800,
                                                 ),
@@ -789,19 +790,16 @@ class _GameScreenState extends State<GameScreen> {
                                                 compassEnabled: false,
                                                 mapToolbarEnabled: false,
                                               )
-                                            : ColoredBox(
+                                            : const ColoredBox(
                                                 color: KuglaColors.midnight,
                                                 child: Center(
                                                   child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            20),
+                                                    padding: EdgeInsets.all(20),
                                                     child: Text(
                                                       'Google Maps is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable pin drops.',
                                                       textAlign:
                                                           TextAlign.center,
-                                                      style: textTheme.bodyLarge
-                                                          ?.copyWith(
+                                                      style: TextStyle(
                                                         color: Colors.white,
                                                         fontWeight:
                                                             FontWeight.w700,
@@ -833,8 +831,7 @@ class _GameScreenState extends State<GameScreen> {
                                               _userGuess == null
                                                   ? 'Tap anywhere on the map to place your guess.'
                                                   : 'Pinned at ${_userGuess!.latitude.toStringAsFixed(3)}, ${_userGuess!.longitude.toStringAsFixed(3)}',
-                                              style: textTheme.titleSmall
-                                                  ?.copyWith(
+                                              style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.w700,
                                               ),
@@ -893,7 +890,7 @@ class _GameScreenState extends State<GameScreen> {
             Positioned.fill(
               child: ColoredBox(
                 color: KuglaColors.deepSpace.withValues(alpha: 0.67),
-                child: Center(
+                child: const Center(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(vertical: 40, horizontal: 12),
                     child: Column(
@@ -903,7 +900,7 @@ class _GameScreenState extends State<GameScreen> {
                         SizedBox(height: 14),
                         Text(
                           'Locking onto Street View...',
-                          style: textTheme.titleSmall?.copyWith(
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                           ),
@@ -943,10 +940,10 @@ class _GameScreenState extends State<GameScreen> {
                                   size: 44,
                                 ),
                                 const SizedBox(height: 14),
-                                Text(
+                                const Text(
                                   'Street View failed to load',
                                   textAlign: TextAlign.center,
-                                  style: textTheme.titleLarge?.copyWith(
+                                  style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
@@ -957,7 +954,7 @@ class _GameScreenState extends State<GameScreen> {
                                   _streetViewErrorMessage ??
                                       'The panorama could not be opened for this round. Retry this location or skip to the next one.',
                                   textAlign: TextAlign.center,
-                                  style: textTheme.bodyMedium?.copyWith(
+                                  style: const TextStyle(
                                     color: KuglaColors.textMuted,
                                     height: 1.45,
                                   ),
@@ -1048,7 +1045,6 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final score = widget.result.score;
     final isLast = widget.roundIndex == widget.totalRounds - 1;
 
@@ -1134,9 +1130,9 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                       },
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    const Text(
                       '/ 5000',
-                      style: textTheme.bodyLarge?.copyWith(
+                      style: TextStyle(
                         color: KuglaColors.textMuted,
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
@@ -1167,7 +1163,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                       ),
                       child: Text(
                         label,
-                        style: textTheme.labelLarge?.copyWith(
+                        style: TextStyle(
                           color: accent,
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
@@ -1194,7 +1190,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                             const SizedBox(width: 5),
                             Text(
                               '${widget.streakLength}x streak · +${((widget.multiplier - 1) * 100).round()}% bonus',
-                              style: textTheme.labelMedium?.copyWith(
+                              style: const TextStyle(
                                 color: KuglaColors.amber,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
@@ -1215,15 +1211,15 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                           border: Border.all(
                               color: KuglaColors.amber.withValues(alpha: 0.25)),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.terrain_rounded,
+                            Icon(Icons.terrain_rounded,
                                 size: 14, color: KuglaColors.amber),
-                            const SizedBox(width: 5),
+                            SizedBox(width: 5),
                             Text(
                               'Landmark Lock · precision scoring',
-                              style: textTheme.labelMedium?.copyWith(
+                              style: TextStyle(
                                 color: KuglaColors.amber,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
@@ -1264,7 +1260,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                         children: [
                           Text(
                             widget.result.locationName,
-                            style: textTheme.titleMedium?.copyWith(
+                            style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                             ),
@@ -1272,9 +1268,8 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                           const SizedBox(height: 2),
                           Text(
                             '${widget.city}, ${widget.result.country}',
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: KuglaColors.textMuted,
-                            ),
+                            style:
+                                const TextStyle(color: KuglaColors.textMuted),
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -1284,7 +1279,7 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                               const SizedBox(width: 6),
                               Text(
                                 '${widget.result.distanceKm.toStringAsFixed(1)} km from target',
-                                style: textTheme.bodySmall?.copyWith(
+                                style: const TextStyle(
                                   color: KuglaColors.textMuted,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1353,10 +1348,10 @@ class _HudChip extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),

@@ -76,7 +76,7 @@ class _AppShellState extends State<AppShell> {
         builder: (_) => GameScreen(
           settings: snapshot.settings,
           gameMode: mode,
-          seenLocationIds: snapshot.seenLocationIds(),
+          recentLocationIds: snapshot.seenLocationIds(),
         ),
       ),
     );
