@@ -1,67 +1,72 @@
-format_version: 11
+format_version: '26'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: flutter
-title: Kugla
-
-app:
-  envs:
-  - PROJECT_LOCATION: .
-  - APK_PATH: "$BITRISE_SOURCE_DIR/build/app/outputs/flutter-apk/app-release.apk"
-
 workflows:
-  primary:
-    description: Build the Android release APK for pushes to master.
-    triggers:
-      push:
-      - branch: master
-      pull_request:
-      - target_branch: master
-        draft_enabled: false
+  deploy:
+    description: |
+      Builds and deploys app using [Deploy to bitrise.io Step](https://docs.bitrise.io/en/bitrise-ci/getting-started/quick-start-guides/getting-started-with-flutter-projects.html#deploying-a-flutter-app).
+
+      If you build for iOS, make sure to set up code signing secrets on Bitrise for a successful build.
+
+      Next steps:
+      - Check out [Getting started with Flutter apps](https://docs.bitrise.io/en/bitrise-ci/getting-started/quick-start-guides/getting-started-with-flutter-projects.html) for signing and deployment options.
+      - Check out the Code signing guide for [iOS](https://docs.bitrise.io/en/bitrise-ci/code-signing/ios-code-signing.html) and [Android](https://docs.bitrise.io/en/bitrise-ci/code-signing/android-code-signing.html).
     steps:
-    - activate-ssh-key:
-        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone: {}
-    - cache-pull: {}
-    - flutter-installer: {}
-    - script:
+    - git-clone@8: {}
+    - certificate-and-profile-installer@1: {}
+    - flutter-installer@1:
+        inputs:
+        - version: 3.41.6
+    - flutter-analyze@0:
+        inputs:
+        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+    - flutter-test@1:
+        inputs:
+        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+    - flutter-build@0:
+        inputs:
+        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+        - platform: both
+        - ios_output_type: archive
+    - deploy-to-bitrise-io@2: {}
+  primary:
+    description: |
+      Builds project and runs tests.
+
+      Next steps:
+      - Check out [Getting started with Flutter apps](https://docs.bitrise.io/en/bitrise-ci/getting-started/quick-start-guides/getting-started-with-flutter-projects.html).
+    steps:
+    - git-clone@8: {}
+    - flutter-installer@1:
+        inputs:
+        - version: 3.41.6
+    - restore-dart-cache@3: {}
+    - script@1:
         title: Refresh cached JUnit helper
         inputs:
         - content: |
             #!/usr/bin/env bash
             set -euo pipefail
-
             PUB_CACHE_DIR="${HOME}/.pub-cache"
-
             rm -f "${PUB_CACHE_DIR}/bin/tojunit"
             rm -f "${PUB_CACHE_DIR}"/global_packages/junitreport/bin/*.snapshot
-
             dart pub global activate junitreport
-    - script:
-        title: Validate Bitrise secrets
+    - flutter-test@1:
         inputs:
-        - content: |
-            #!/usr/bin/env bash
-            set -euo pipefail
-
-            if [ -z "${GOOGLE_MAPS_API_KEY:-}" ]; then
-              echo "Missing required Bitrise Secret: GOOGLE_MAPS_API_KEY"
-              exit 1
-            fi
-    - script:
-        title: Flutter pub get
-        inputs:
-        - content: |
-            #!/usr/bin/env bash
-            set -euo pipefail
-            flutter pub get
-    - script:
-        title: Build Android release APK
-        inputs:
-        - content: |
-            #!/usr/bin/env bash
-            set -euo pipefail
-            flutter build apk --release
-    - deploy-to-bitrise-io:
-        inputs:
-        - deploy_path: "$APK_PATH"
-    - cache-push: {}
+        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+    - save-dart-cache@1: {}
+    - deploy-to-bitrise-io@2: {}
+    triggers:
+      push:
+      - branch: master
+      pull_request:
+      - source_branch: "*"
+meta:
+  bitrise.io:
+    stack: osx-xcode-26.4.x
+    machine_type_id: g2.mac.large
+app:
+  envs:
+  - BITRISE_FLUTTER_PROJECT_LOCATION: "."
+    opts:
+      is_expand: false
