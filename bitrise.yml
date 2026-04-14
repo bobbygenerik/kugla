@@ -33,12 +33,13 @@ workflows:
     - flutter-test@1:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+        - additional_params: "--dart-define=FIREBASE_ENABLED=false"
     - flutter-build@0:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
         - platform: both
         - ios_output_type: archive
-    - deploy-to-itunesconnect-application-loader@3:
+    - deploy-to-itunesconnect-application-loader@2:
         inputs:
         - itunescon_user: "$APPLE_ID"
         - password: "$APP_SPECIFIC_PASSWORD"
