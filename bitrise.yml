@@ -58,7 +58,13 @@ workflows:
             set -euo pipefail
             cd "$BITRISE_SOURCE_DIR/$BITRISE_FLUTTER_PROJECT_LOCATION"
 
-            flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+            IOS_BUILD_NUMBER="${BITRISE_BUILD_NUMBER:-14}"
+            echo "Building iOS IPA with build number: ${IOS_BUILD_NUMBER}"
+
+            flutter build ipa \
+              --release \
+              --build-number="${IOS_BUILD_NUMBER}" \
+              --export-options-plist=ios/ExportOptions.plist
     - script@1:
         title: Export generated IPA path
         inputs:
