@@ -37,6 +37,25 @@ workflows:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
         - additional_params: "--dart-define=FIREBASE_ENABLED=false"
     - script@1:
+        title: Configure iOS Google Maps secret
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            cd "$BITRISE_SOURCE_DIR/$BITRISE_FLUTTER_PROJECT_LOCATION"
+
+            if [ -z "${GMS_API_KEY:-}" ]; then
+              echo "Missing Bitrise Secret: GMS_API_KEY"
+              exit 1
+            fi
+
+            cat > ios/Flutter/Secrets.xcconfig <<EOF
+            GMS_API_KEY = ${GMS_API_KEY}
+            EOF
+
+            echo "Wrote ios/Flutter/Secrets.xcconfig for Bitrise build"
+    - script@1:
         title: List installed provisioning profiles
         inputs:
         - content: |

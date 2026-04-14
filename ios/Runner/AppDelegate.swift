@@ -13,7 +13,10 @@ import GoogleMaps
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String,
+    let rawApiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String
+    logGoogleMapsConfiguration(rawApiKey)
+
+    if let apiKey = rawApiKey,
        isResolvableGoogleMapsApiKey(apiKey) {
       hasValidGoogleMapsKey = true
       googleMapsConfigMessage = "Google Maps is configured."
@@ -58,5 +61,31 @@ import GoogleMaps
     }
 
     return true
+  }
+
+  private func logGoogleMapsConfiguration(_ value: String?) {
+    #if DEBUG
+      guard let value else {
+        print("[Kugla][Maps] GMSApiKey is missing from Info.plist at runtime.")
+        assertionFailure("Missing GMSApiKey. Create ios/Flutter/Secrets.xcconfig with a valid GMS_API_KEY.")
+        return
+      }
+
+      let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+      if trimmed.isEmpty {
+        print("[Kugla][Maps] GMSApiKey resolved to an empty string.")
+        assertionFailure("Empty GMSApiKey. Set GMS_API_KEY in ios/Flutter/Secrets.xcconfig.")
+        return
+      }
+
+      if trimmed.hasPrefix("$(") && trimmed.hasSuffix(")") {
+        print("[Kugla][Maps] GMSApiKey is still unresolved: \(trimmed)")
+        assertionFailure("Unresolved GMSApiKey. Confirm ios/Flutter/Secrets.xcconfig exists and is included by the active build configuration.")
+        return
+      }
+
+      let prefix = String(trimmed.prefix(8))
+      print("[Kugla][Maps] GMSApiKey resolved successfully with prefix: \(prefix)…")
+    #endif
   }
 }
