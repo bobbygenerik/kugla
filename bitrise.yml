@@ -34,6 +34,20 @@ workflows:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
         - additional_params: "--dart-define=FIREBASE_ENABLED=false"
+    - script@1:
+        title: List installed provisioning profiles
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+            echo "=== Installed profiles ==="
+            ls -la "$PROFILES_DIR" 2>/dev/null || echo "No profiles directory found"
+            for f in "$PROFILES_DIR"/*.mobileprovision; do
+              [ -f "$f" ] || continue
+              echo "---"
+              echo "File: $f"
+              security cms -D -i "$f" 2>/dev/null | grep -A1 "<key>Name</key>" | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/'
+            done
     - flutter-build@0:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
