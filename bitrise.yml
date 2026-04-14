@@ -59,6 +59,7 @@ workflows:
         inputs:
         - itunescon_user: "$APPLE_ID"
         - password: "$APP_SPECIFIC_PASSWORD"
+        - ipa_path: "$BITRISE_IPA_PATH"
     - deploy-to-bitrise-io@2: {}
     triggers:
       push:
