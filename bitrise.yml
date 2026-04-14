@@ -51,8 +51,9 @@ workflows:
     - flutter-build@0:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
-        - platform: both
+        - platform: ios
         - ios_output_type: archive
+        - ios_additional_params: "--release --export-options-plist=ios/ExportOptions.plist"
         - ios_codesign_identity: "Apple Distribution: Robert Brown (QZ8H7RN9JD)"
     - deploy-to-itunesconnect-application-loader@2:
         inputs:
