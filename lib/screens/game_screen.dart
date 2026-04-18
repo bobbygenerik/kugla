@@ -54,6 +54,8 @@ class _GameScreenState extends State<GameScreen> {
   int _streak = 0;
   bool _nativeMapAvailable = false;
   String? _nativeMapMessage;
+  map_view.GoogleMapController? _mapController;
+  map_view.LatLng? _resultTarget;
 
   LocationSeed get _currentSeed => _roundSeeds[_roundIndex];
 
@@ -87,6 +89,7 @@ class _GameScreenState extends State<GameScreen> {
     _streetViewTimeout?.cancel();
     _streetViewGeneration += 1;
     _userGuess = null;
+    _resultTarget = null;
     _mapExpanded = false;
     _streetViewReady = false;
     _streetViewFailed = false;
@@ -104,6 +107,20 @@ class _GameScreenState extends State<GameScreen> {
             'The panorama took too long to respond. This usually means Street View is unavailable for this spot or the API request was rejected.';
       });
     });
+  }
+
+  map_view.LatLngBounds _boundsForPoints(
+      map_view.LatLng a, map_view.LatLng b) {
+    return map_view.LatLngBounds(
+      southwest: map_view.LatLng(
+        min(a.latitude, b.latitude),
+        min(a.longitude, b.longitude),
+      ),
+      northeast: map_view.LatLng(
+        max(a.latitude, b.latitude),
+        max(a.longitude, b.longitude),
+      ),
+    );
   }
 
   Future<void> _loadNativeMapAvailability() async {
@@ -321,6 +338,24 @@ class _GameScreenState extends State<GameScreen> {
 
     _results.add(result);
 
+    setState(() {
+      _mapExpanded = false;
+      _resultTarget = target;
+    });
+
+    // Fly the mini-map to frame guess + target before showing the result card.
+    if (_mapController != null) {
+      try {
+        // If both pins are at the same spot (skipped round), just zoom in.
+        final bounds = _boundsForPoints(guess, target);
+        await _mapController!.animateCamera(
+          map_view.CameraUpdate.newLatLngBounds(bounds, 60),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -650,14 +685,6 @@ class _GameScreenState extends State<GameScreen> {
                       ),
                     ],
                   ),
-                  if (_mapExpanded)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _toggleMapExpanded(false),
-                        child: Container(color: Colors.black26),
-                      ),
-                    ),
                   Align(
                     alignment: _mapExpanded
                         ? Alignment.bottomCenter
@@ -683,222 +710,204 @@ class _GameScreenState extends State<GameScreen> {
                       child: ClipRRect(
                         borderRadius:
                             BorderRadius.circular(_mapExpanded ? 22 : 20),
-                        child: !_mapExpanded
-                            ? Stack(
+                        child: Stack(
                                 children: [
-                                  // Decorative preview only (no second GoogleMap) —
-                                  // avoids sharing Maps/Street View init on Android (crash regression check).
-                                  const Positioned.fill(
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            KuglaColors.graphite,
-                                            KuglaColors.midnight,
-                                            KuglaColors.panel,
-                                          ],
-                                        ),
-                                      ),
-                                      child: CustomPaint(
-                                        painter: _MiniMapPreviewPainter(),
-                                      ),
-                                    ),
-                                  ),
+                                  // Single GoogleMap always mounted — avoids the
+                                  // "two GoogleMaps simultaneously" Android crash
+                                  // that occurred when swapping between a mini map
+                                  // and an expanded map widget.
                                   Positioned.fill(
-                                    child: IgnorePointer(
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.black
-                                                  .withValues(alpha: 0.10),
-                                              Colors.black
-                                                  .withValues(alpha: 0.52),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned.fill(
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: canOpenMap
-                                            ? () => _toggleMapExpanded(true)
-                                            : null,
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(14),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              const _HudChip(
-                                                icon: Icons.place_rounded,
-                                                label: 'Map',
-                                              ),
-                                              Text(
-                                                canOpenMap
-                                                    ? 'Tap to guess'
-                                                    : _nativeMapAvailable
-                                                        ? 'Waiting for Street View'
-                                                        : 'Map unavailable on this build',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w800,
+                                    child: _nativeMapAvailable
+                                        ? map_view.GoogleMap(
+                                            mapType: map_view.MapType.normal,
+                                            initialCameraPosition:
+                                                _kMapWorldOverview,
+                                            onMapCreated: (c) =>
+                                                _mapController = c,
+                                            onTap: _mapExpanded
+                                                ? (pos) {
+                                                    HapticFeedback.lightImpact();
+                                                    setState(
+                                                        () => _userGuess = pos);
+                                                  }
+                                                : null,
+                                            markers: {
+                                              if (_userGuess != null)
+                                                map_view.Marker(
+                                                  markerId: const map_view
+                                                      .MarkerId('guess'),
+                                                  position: _userGuess!,
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const _HudChip(
-                                          icon: Icons.place_rounded,
-                                          label: 'Drop your pin',
-                                        ),
-                                        const Spacer(),
-                                        _HudIconButton(
-                                          icon: Icons.close_rounded,
-                                          onPressed: () =>
-                                              _toggleMapExpanded(false),
-                                          tooltip: 'Close map',
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Expanded(
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(18),
-                                        child: _nativeMapAvailable
-                                            ? map_view.GoogleMap(
-                                                mapType:
-                                                    map_view.MapType.normal,
-                                                initialCameraPosition:
-                                                    _kMapWorldOverview,
-                                                onTap: (pos) => setState(
-                                                    () => _userGuess = pos),
-                                                markers: _userGuess == null
-                                                    ? {}
-                                                    : {
-                                                        map_view.Marker(
-                                                          markerId:
-                                                              const map_view
-                                                                  .MarkerId(
-                                                                  'guess'),
-                                                          position: _userGuess!,
-                                                        ),
-                                                      },
-                                                zoomControlsEnabled: false,
-                                                myLocationButtonEnabled: false,
-                                                compassEnabled: false,
-                                                mapToolbarEnabled: false,
-                                              )
-                                            : ColoredBox(
-                                                color: KuglaColors.midnight,
-                                                child: Center(
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            20),
-                                                    child: Text(
-                                                      missingMapsMessage,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        height: 1.4,
-                                                      ),
-                                                    ),
+                                              if (_resultTarget != null)
+                                                map_view.Marker(
+                                                  markerId: const map_view
+                                                      .MarkerId('target'),
+                                                  position: _resultTarget!,
+                                                  icon: map_view.BitmapDescriptor
+                                                      .defaultMarkerWithHue(
+                                                    map_view.BitmapDescriptor
+                                                        .hueGreen,
                                                   ),
                                                 ),
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: KuglaColors.midnight
-                                            .withValues(alpha: 0.88),
-                                        borderRadius: BorderRadius.circular(22),
-                                        border: Border.all(
-                                          color: KuglaColors.stroke,
-                                        ),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              _userGuess == null
-                                                  ? 'Tap anywhere on the map to place your guess.'
-                                                  : 'Pinned at ${_userGuess!.latitude.toStringAsFixed(3)}, ${_userGuess!.longitude.toStringAsFixed(3)}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
+                                            },
+                                            zoomControlsEnabled: false,
+                                            myLocationButtonEnabled: false,
+                                            compassEnabled: false,
+                                            mapToolbarEnabled: false,
+                                            scrollGesturesEnabled: _mapExpanded,
+                                            zoomGesturesEnabled: _mapExpanded,
+                                            rotateGesturesEnabled: _mapExpanded,
+                                            tiltGesturesEnabled: false,
+                                          )
+                                        : ColoredBox(
+                                            color: KuglaColors.midnight,
+                                            child: Center(
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(20),
+                                                child: Text(
+                                                  missingMapsMessage,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                    height: 1.4,
+                                                  ),
+                                                ),
                                               ),
                                             ),
-                                            const SizedBox(height: 12),
-                                            Row(
+                                          ),
+                                  ),
+                                  // Collapsed overlay
+                                  if (!_mapExpanded)
+                                    Positioned.fill(
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: canOpenMap
+                                              ? () => _toggleMapExpanded(true)
+                                              : null,
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(14),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceBetween,
                                               children: [
-                                                Expanded(
-                                                  child: OutlinedButton.icon(
-                                                    onPressed: () => setState(
-                                                      () => _userGuess = null,
-                                                    ),
-                                                    icon: const Icon(
-                                                      Icons.restart_alt_rounded,
-                                                    ),
-                                                    label:
-                                                        const Text('Clear pin'),
-                                                  ),
+                                                const _HudChip(
+                                                  icon: Icons.place_rounded,
+                                                  label: 'Map',
                                                 ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: FilledButton.icon(
-                                                    onPressed:
-                                                        _nativeMapAvailable &&
-                                                                _userGuess !=
-                                                                    null
-                                                            ? _onGuessPressed
-                                                            : null,
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .check_circle_rounded,
-                                                    ),
-                                                    label: const Text(
-                                                      'Lock guess',
-                                                    ),
+                                                Text(
+                                                  canOpenMap
+                                                      ? 'Tap to guess'
+                                                      : _nativeMapAvailable
+                                                          ? 'Waiting for Street View'
+                                                          : 'Map unavailable on this build',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w800,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                          ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  // Expanded: header at top
+                                  if (_mapExpanded)
+                                    Positioned(
+                                      top: 16,
+                                      left: 16,
+                                      right: 16,
+                                      child: Row(
+                                        children: [
+                                          const _HudChip(
+                                            icon: Icons.place_rounded,
+                                            label: 'Drop your pin',
+                                          ),
+                                          const Spacer(),
+                                          _HudIconButton(
+                                            icon: Icons.close_rounded,
+                                            onPressed: () =>
+                                                _toggleMapExpanded(false),
+                                            tooltip: 'Close map',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  // Expanded: guess controls at bottom
+                                  if (_mapExpanded)
+                                    Positioned(
+                                      bottom: 16,
+                                      left: 16,
+                                      right: 16,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: KuglaColors.midnight
+                                              .withValues(alpha: 0.88),
+                                          borderRadius:
+                                              BorderRadius.circular(22),
+                                          border: Border.all(
+                                            color: KuglaColors.stroke,
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                _userGuess == null
+                                                    ? 'Tap anywhere on the map to place your guess.'
+                                                    : 'Pinned at ${_userGuess!.latitude.toStringAsFixed(3)}, ${_userGuess!.longitude.toStringAsFixed(3)}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: OutlinedButton.icon(
+                                                      onPressed: () => setState(
+                                                        () =>
+                                                            _userGuess = null,
+                                                      ),
+                                                      icon: const Icon(
+                                                        Icons.restart_alt_rounded,
+                                                      ),
+                                                      label: const Text(
+                                                          'Clear pin'),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: FilledButton.icon(
+                                                      onPressed: _nativeMapAvailable &&
+                                                              _userGuess != null
+                                                          ? _onGuessPressed
+                                                          : null,
+                                                      icon: const Icon(
+                                                        Icons
+                                                            .check_circle_rounded,
+                                                      ),
+                                                      label: const Text(
+                                                          'Lock guess'),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                       ),
                     ),
@@ -1040,9 +1049,10 @@ class _RoundResultOverlay extends StatefulWidget {
 }
 
 class _RoundResultOverlayState extends State<_RoundResultOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _countController;
   late final Animation<double> _countAnim;
+  late final AnimationController _confettiController;
 
   @override
   void initState() {
@@ -1055,14 +1065,22 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
       parent: _countController,
       curve: Curves.easeOutCubic,
     );
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
     Future<void>.delayed(const Duration(milliseconds: 260), () {
-      if (mounted) _countController.forward();
+      if (mounted) {
+        _countController.forward();
+        if (widget.result.score >= 4000) _confettiController.forward();
+      }
     });
   }
 
   @override
   void dispose() {
     _countController.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -1092,7 +1110,23 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
     final double maxDialogWidth = min(media.size.width * 0.95, 480.0);
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Center(
+      body: Stack(
+        children: [
+          if (widget.result.score >= 4000)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _confettiController,
+                  builder: (context, _) => CustomPaint(
+                    painter: _ConfettiPainter(
+                      progress: _confettiController.value,
+                      seed: widget.result.score,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Center(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
@@ -1259,13 +1293,17 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                       child: SizedBox(
                         height: 180,
                         width: double.infinity,
-                        child: CustomPaint(
-                          painter: _ResultMapPainter(
-                            targetLat: widget.result.targetLatitude,
-                            targetLng: widget.result.targetLongitude,
-                            guessLat: widget.result.guessLatitude,
-                            guessLng: widget.result.guessLongitude,
-                            lineColor: accent,
+                        child: AnimatedBuilder(
+                          animation: _countAnim,
+                          builder: (context, _) => CustomPaint(
+                            painter: _ResultMapPainter(
+                              targetLat: widget.result.targetLatitude,
+                              targetLng: widget.result.targetLongitude,
+                              guessLat: widget.result.guessLatitude,
+                              guessLng: widget.result.guessLongitude,
+                              lineColor: accent,
+                              arcProgress: _countAnim.value,
+                            ),
                           ),
                         ),
                       ),
@@ -1338,8 +1376,63 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
           ),
         ),
       ),
+        ],
+      ),
     );
   }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  final double progress;
+  final int seed;
+
+  const _ConfettiPainter({required this.progress, required this.seed});
+
+  static const _colors = [
+    KuglaColors.cyan,
+    KuglaColors.pulse,
+    KuglaColors.amber,
+    KuglaColors.success,
+    KuglaColors.lilac,
+    KuglaColors.rose,
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || progress >= 1) return;
+    final rng = Random(seed);
+    const count = 60;
+    for (var i = 0; i < count; i++) {
+      final angle = rng.nextDouble() * 2 * pi;
+      // Spread radius grows quickly then eases out
+      final spread = size.width * 0.55 * Curves.easeOut.transform(progress);
+      final drift = spread * (0.4 + rng.nextDouble() * 0.6);
+      final dx = size.width * 0.5 + cos(angle) * drift;
+      // Gravity: particles fall slightly as progress increases
+      final dy = size.height * 0.35 +
+          sin(angle) * drift +
+          size.height * 0.25 * progress * progress;
+      final opacity = (1.0 - progress).clamp(0.0, 1.0);
+      final color =
+          _colors[i % _colors.length].withValues(alpha: opacity * 0.85);
+      final paint = Paint()..color = color;
+      // Alternate circles and small rects for variety
+      if (i % 3 == 0) {
+        canvas.drawCircle(Offset(dx, dy), 4 + rng.nextDouble() * 3, paint);
+      } else {
+        final w = 5 + rng.nextDouble() * 5;
+        final h = 3 + rng.nextDouble() * 3;
+        canvas.save();
+        canvas.translate(dx, dy);
+        canvas.rotate(angle + progress * 4);
+        canvas.drawRect(Rect.fromCenter(center: Offset.zero, width: w, height: h), paint);
+        canvas.restore();
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress;
 }
 
 class _HudChip extends StatelessWidget {
@@ -1417,6 +1510,7 @@ class _ResultMapPainter extends CustomPainter {
   final double guessLat;
   final double guessLng;
   final Color lineColor;
+  final double arcProgress;
 
   const _ResultMapPainter({
     required this.targetLat,
@@ -1424,24 +1518,54 @@ class _ResultMapPainter extends CustomPainter {
     required this.guessLat,
     required this.guessLng,
     required this.lineColor,
+    this.arcProgress = 1.0,
   });
 
-  // Equirectangular projection: lat/lng → fractional (x, y) in [0,1]
   Offset _project(double lat, double lng, Size size) {
     final x = (lng + 180) / 360 * size.width;
     final y = (90 - lat) / 180 * size.height;
     return Offset(x, y);
   }
 
+  // Spherical linear interpolation between two lat/lng points.
+  (double lat, double lng) _slerp(
+    double lat1, double lng1, double lat2, double lng2, double t,
+  ) {
+    final phi1 = lat1 * pi / 180;
+    final lam1 = lng1 * pi / 180;
+    final phi2 = lat2 * pi / 180;
+    final lam2 = lng2 * pi / 180;
+
+    final x1 = cos(phi1) * cos(lam1);
+    final y1 = cos(phi1) * sin(lam1);
+    final z1 = sin(phi1);
+    final x2 = cos(phi2) * cos(lam2);
+    final y2 = cos(phi2) * sin(lam2);
+    final z2 = sin(phi2);
+
+    final dot = (x1 * x2 + y1 * y2 + z1 * z2).clamp(-1.0, 1.0);
+    final omega = acos(dot);
+    if (omega < 1e-6) return (lat1, lng1);
+
+    final s = sin(omega);
+    final a = sin((1 - t) * omega) / s;
+    final b = sin(t * omega) / s;
+    final x = a * x1 + b * x2;
+    final y = a * y1 + b * y2;
+    final z = a * z1 + b * z2;
+
+    final lat = atan2(z, sqrt(x * x + y * y)) * 180 / pi;
+    final lng = atan2(y, x) * 180 / pi;
+    return (lat, lng);
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    // Background
     canvas.drawRect(
       Offset.zero & size,
       Paint()..color = KuglaColors.midnight,
     );
 
-    // Grid lines
     final gridPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.07)
       ..strokeWidth = 0.5;
@@ -1457,37 +1581,42 @@ class _ResultMapPainter extends CustomPainter {
     final targetPt = _project(targetLat, targetLng, size);
     final guessPt = _project(guessLat, guessLng, size);
 
-    // Line between guess and target
-    final linePaint = Paint()
-      ..color = lineColor.withValues(alpha: 0.7)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(targetPt, guessPt, linePaint);
+    // Animated great-circle arc drawn in 32 segments up to arcProgress.
+    if (arcProgress > 0) {
+      const steps = 32;
+      final arcPaint = Paint()
+        ..color = lineColor.withValues(alpha: 0.75)
+        ..strokeWidth = 1.8
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      final arcPath = Path();
+      for (var i = 0; i <= steps; i++) {
+        final t = (i / steps) * arcProgress;
+        final (lat, lng) = _slerp(guessLat, guessLng, targetLat, targetLng, t);
+        final pt = _project(lat, lng, size);
+        if (i == 0) {
+          arcPath.moveTo(pt.dx, pt.dy);
+        } else {
+          arcPath.lineTo(pt.dx, pt.dy);
+        }
+      }
+      canvas.drawPath(arcPath, arcPaint);
+    }
 
-    // Target marker (on-theme success green)
+    // Target marker
+    canvas.drawCircle(targetPt, 7, Paint()..color = KuglaColors.success);
     canvas.drawCircle(
-      targetPt,
-      7,
-      Paint()..color = KuglaColors.success,
-    );
-    canvas.drawCircle(
-      targetPt,
-      7,
+      targetPt, 7,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
 
-    // Guess marker (red/lilac)
+    // Guess marker
+    canvas.drawCircle(guessPt, 6, Paint()..color = KuglaColors.lilac);
     canvas.drawCircle(
-      guessPt,
-      6,
-      Paint()..color = KuglaColors.lilac,
-    );
-    canvas.drawCircle(
-      guessPt,
-      6,
+      guessPt, 6,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
@@ -1500,57 +1629,6 @@ class _ResultMapPainter extends CustomPainter {
       old.targetLat != targetLat ||
       old.targetLng != targetLng ||
       old.guessLat != guessLat ||
-      old.guessLng != guessLng;
-}
-
-class _MiniMapPreviewPainter extends CustomPainter {
-  const _MiniMapPreviewPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.10)
-      ..strokeWidth = 0.8;
-
-    for (var lng = -180; lng <= 180; lng += 45) {
-      final x = (lng + 180) / 360 * size.width;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-
-    for (var lat = -90; lat <= 90; lat += 30) {
-      final y = (90 - lat) / 180 * size.height;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    final continentPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.08);
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.08, size.height * 0.18, size.width * 0.20,
-          size.height * 0.44),
-      continentPaint,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.34, size.height * 0.14, size.width * 0.22,
-          size.height * 0.20),
-      continentPaint,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.46, size.height * 0.28, size.width * 0.18,
-          size.height * 0.38),
-      continentPaint,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.68, size.height * 0.18, size.width * 0.20,
-          size.height * 0.28),
-      continentPaint,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.78, size.height * 0.58, size.width * 0.10,
-          size.height * 0.12),
-      continentPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MiniMapPreviewPainter oldDelegate) => false;
+      old.guessLng != guessLng ||
+      old.arcProgress != arcProgress;
 }

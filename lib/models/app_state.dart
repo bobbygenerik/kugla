@@ -434,7 +434,7 @@ class AppSnapshot {
         progress: _ratio(totalPerfectishRounds, 3),
         unlocked: totalPerfectishRounds >= 3,
         icon: Icons.track_changes_rounded,
-        color: KuglaColors.pulse,
+        color: KuglaColors.amber,
       ),
       AchievementProgress(
         title: 'Road Warrior',
@@ -590,8 +590,8 @@ class _StreetViewAnchor {
     required this.longitude,
     required this.clue,
     this.variantCount = 36,
-    this.latRadius = 0.045,
-    this.lngRadius = 0.06,
+    this.latRadius = 0.028,
+    this.lngRadius = 0.035,
   });
 }
 
@@ -670,7 +670,7 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     latitude: 45.7640,
     longitude: 4.8357,
     clue:
-        'Mid-rise apartment blocks, practical streetscape details, and a dense western European urban feel.',
+        'Mid-rise apartment blocks, practical streetscape details, and a dense city-centre rhythm.',
   ),
   _StreetViewAnchor(
     id: 'milan',
@@ -699,7 +699,7 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     latitude: 35.6899,
     longitude: 139.7006,
     clue:
-        'Dense streets with compact buildings, vending machines, and frequent overhead wiring.',
+        'Dense streets with compact buildings, frequent overhead wiring, and immaculate kerb detail.',
     variantCount: 48,
     latRadius: 0.055,
     lngRadius: 0.07,
@@ -713,6 +713,8 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     longitude: 144.9690,
     clue:
         'Left-side driving, low-rise streets, and a mix of brick homes and shops.',
+    latRadius: 0.025,
+    lngRadius: 0.030,
   ),
   _StreetViewAnchor(
     id: 'wellington',
@@ -803,7 +805,7 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     latitude: 55.6769,
     longitude: 12.5681,
     clue:
-        'Clean streets, cycle-friendly design, and restrained Scandinavian streetscape details.',
+        'Clean streets, cycle-friendly design, and restrained low-rise residential detail.',
   ),
   _StreetViewAnchor(
     id: 'lisbon',
@@ -886,7 +888,7 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     latitude: 41.8781,
     longitude: -87.6298,
     clue:
-        'Straight streets, brick mid-rises, and a big-lake city grid with strong neighborhood identity.',
+        'Straight streets, brick mid-rises, and a flat city grid with strong neighborhood identity.',
     variantCount: 42,
   ),
   _StreetViewAnchor(

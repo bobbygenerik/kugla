@@ -1,43 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Industrial atlas palette — aligned with `output/mockups/generate_ui_mockups.py`.
+/// Teal atlas palette — matches icon/splash branding.
 class KuglaColors {
-  static const deepSpace = Color(0xFF0B0D12);
-  static const midnight = Color(0xFF12161D);
-  static const panel = Color(0xFF1A1F27);
-  static const panelRaised = Color(0xFF212833);
-  static const graphite = Color(0xFF20252D);
+  static const deepSpace   = Color(0xFF071318);
+  static const midnight    = Color(0xFF0C1E28);
+  static const panel       = Color(0xFF112635);
+  static const panelRaised = Color(0xFF163040);
+  static const graphite    = Color(0xFF142C39);
 
-  /// Primary label / ice highlights (mockup `ICE`).
-  static const cyan = Color(0xFF9FC3FF);
-  static const cyanSoft = Color(0xFFD9E8FF);
+  /// Primary label / teal highlights.
+  static const cyan     = Color(0xFF7ADAEE);
+  static const cyanSoft = Color(0xFFC0EEF8);
 
-  /// Daily Pulse & primary actions (mockup `OCEAN`).
-  static const pulse = Color(0xFF3E7CBF);
+  /// Daily Pulse & primary actions — icon background teal.
+  static const pulse = Color(0xFF26A5C3);
 
-  /// World Atlas (mockup `JADE`).
+  /// World Atlas — jade green.
   static const atlas = Color(0xFF5FAF98);
 
-  /// Landmark Lock (mockup `TERRACOTTA`).
+  /// Landmark Lock — terracotta.
   static const landmark = Color(0xFFC7775A);
 
-  /// Mauve secondary (mockup `ROSE`).
+  /// Streaks — saffron/amber.
+  static const amber = Color(0xFFD7A55A);
+
+  /// Mauve secondary.
   static const rose = Color(0xFFB48AA0);
 
-  /// Rough tier / cool secondary (mockup `INDIGO`).
+  /// Cool secondary / indigo.
   static const lilac = Color(0xFF6D78B8);
 
   static const success = Color(0xFF83B7A4);
 
-  static const text = Color(0xFFF4F7FB);
-  static const textMuted = Color(0xFF9DA7B6);
+  static const text      = Color(0xFFF0F9FC);
+  static const textMuted = Color(0xFF88B5C5);
 
-  /// Mockup `STROKE` — solid border.
-  static const stroke = Color(0xFF2D3644);
+  /// Solid border.
+  static const stroke = Color(0xFF1A3B4A);
 
-  /// Silver-muted chips (mockup `FOG`).
-  static const fog = Color(0xFFA9B5C6);
+  /// Muted chips / fog.
+  static const fog = Color(0xFF8BBDCC);
 }
 
 TextStyle? _withTextColor(TextStyle? style) =>
@@ -70,7 +73,7 @@ ThemeData buildKuglaTheme() {
   const colorScheme = ColorScheme.dark(
     primary: KuglaColors.pulse,
     onPrimary: KuglaColors.text,
-    secondary: KuglaColors.atlas,
+    secondary: KuglaColors.amber,
     surface: KuglaColors.panel,
     onSurface: KuglaColors.text,
   );

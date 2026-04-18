@@ -49,21 +49,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 980),
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                  textTheme: Theme.of(context).textTheme.copyWith(
-                        bodyMedium: Theme.of(context)
-                            .textTheme
-                            .bodyLarge
-                            ?.copyWith(
-                              color: KuglaColors.fog,
-                              fontWeight: FontWeight.w500,
-                              height: 1.35,
-                            ),
-                      ),
-                ),
+              child: GlassPanel(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -73,55 +59,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                       subtitle:
                           'Family rankings and your personal best missions.',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Container(
                       decoration: BoxDecoration(
                         color: KuglaColors.midnight,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
                       child: TabBar(
                         controller: _tabController,
-                        indicatorSize: TabBarIndicatorSize.label,
-                        indicatorPadding: const EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 2,
-                        ),
-                        labelPadding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 0,
-                        ),
                         dividerColor: Colors.transparent,
-                        dividerHeight: 0,
                         indicator: BoxDecoration(
-                          color: KuglaColors.pulse.withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(999),
+                          color: KuglaColors.pulse.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        overlayColor:
-                            const WidgetStatePropertyAll(Colors.transparent),
-                        splashFactory: NoSplash.splashFactory,
                         labelColor: KuglaColors.cyanSoft,
-                        unselectedLabelColor: KuglaColors.fog,
-                        labelStyle: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
-                        ),
-                        unselectedLabelStyle: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.2,
-                        ),
+                        unselectedLabelColor: KuglaColors.textMuted,
                         tabs: const [
                           Tab(text: 'Family'),
                           Tab(text: 'Personal best'),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
@@ -141,7 +100,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 180),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? selectedColor.withValues(alpha: 0.14)
@@ -157,19 +116,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(icon,
-                                        size: 15,
+                                        size: 13,
                                         color: selected
                                             ? selectedColor
                                             : KuglaColors.textMuted),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 5),
                                     Text(
                                       label,
                                       style: TextStyle(
                                         color: selected
                                             ? selectedColor
                                             : KuglaColors.textMuted,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
                                       ),
                                     ),
                                   ],

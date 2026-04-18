@@ -16,18 +16,18 @@ void main() {
       'has_seen_onboarding_v1': true,
     });
     await tester.pumpWidget(const KuglaApp());
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Mission Briefing'), findsNothing);
     expect(find.textContaining('Daily pulse is ready'), findsOneWidget);
 
     await tester.tap(find.text('Records'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.textContaining('Hall of Navigators'), findsOneWidget);
     expect(find.textContaining('Daily pulse is ready'), findsNothing);
 
     await tester.tap(find.text('Explore'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.textContaining('Daily pulse is ready'), findsOneWidget);
   });
 }

@@ -31,7 +31,7 @@ class KuglaMapBackdrop extends StatelessWidget {
           ),
         Positioned.fill(
           child: ColoredBox(
-            color: const Color(0xFF081018).withValues(alpha: 12 / 255),
+            color: const Color(0xFF060F15).withValues(alpha: 12 / 255),
           ),
         ),
         Positioned.fill(
@@ -41,8 +41,8 @@ class KuglaMapBackdrop extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFF18232E).withValues(alpha: 48 / 255),
-                  const Color(0xFF0B1118).withValues(alpha: 68 / 255),
+                  const Color(0xFF0F2535).withValues(alpha: 48 / 255),
+                  const Color(0xFF071318).withValues(alpha: 68 / 255),
                 ],
               ),
             ),
@@ -50,12 +50,12 @@ class KuglaMapBackdrop extends StatelessWidget {
         ),
         Positioned.fill(
           child: ColoredBox(
-            color: const Color(0xFF13202A).withValues(alpha: 12 / 255),
+            color: const Color(0xFF0A1B24).withValues(alpha: 12 / 255),
           ),
         ),
         Positioned.fill(
           child: ColoredBox(
-            color: const Color(0xFF0A1016).withValues(alpha: 18 / 255),
+            color: const Color(0xFF071318).withValues(alpha: 18 / 255),
           ),
         ),
         Positioned.fill(
@@ -80,7 +80,7 @@ class _AtlasBackdropPainter extends CustomPainter {
     final contour = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0xFFC7CEDA).withValues(alpha: 0.07);
+      ..color = const Color(0xFF8BBDCC).withValues(alpha: 0.07);
 
     for (var i = 0; i < 10; i++) {
       final y = size.height * (0.10 + (i * 0.09));
@@ -94,7 +94,7 @@ class _AtlasBackdropPainter extends CustomPainter {
     final meridian = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0xFF7F8EA3).withValues(alpha: 0.06);
+      ..color = const Color(0xFF6AAABB).withValues(alpha: 0.06);
 
     for (var i = 0; i < 8; i++) {
       final x = size.width * (0.08 + (i * 0.12));

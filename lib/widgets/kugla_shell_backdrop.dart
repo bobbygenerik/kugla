@@ -35,8 +35,8 @@ class KuglaShellBackdrop extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFF18232E).withValues(alpha: 48 / 255),
-                  const Color(0xFF0B1118).withValues(alpha: 68 / 255),
+                  const Color(0xFF0F2535).withValues(alpha: 48 / 255),
+                  const Color(0xFF071318).withValues(alpha: 68 / 255),
                 ],
               ),
             ),
