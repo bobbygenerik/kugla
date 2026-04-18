@@ -15,28 +15,71 @@ class SocialScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recentSessions = snapshot.recentSessions.take(10).toList();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-      children: [
-        const SectionHeader(
-          eyebrow: 'History',
-          title: 'Mission log',
-          subtitle: 'A chronological record of the sessions you have completed.',
-        ),
-        const SizedBox(height: 18),
-        if (recentSessions.isEmpty)
-          const GlassPanel(
-            child: Text(
-              'No missions logged yet. Start a mission and your history will appear here.',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 960;
+        final contentMaxWidth = wide ? 980.0 : double.infinity;
+        final constrainedWidth = wide
+            ? (constraints.maxWidth < contentMaxWidth
+                ? constraints.maxWidth
+                : contentMaxWidth)
+            : constraints.maxWidth;
+        final cardWidth = wide ? (constrainedWidth - 24) / 2 : null;
+
+        final content = [
+          const SectionHeader(
+            eyebrow: 'History',
+            title: 'Mission log',
+            subtitle:
+                'A chronological record of the sessions you have completed.',
+          ),
+          const SizedBox(height: 18),
+          if (recentSessions.isEmpty)
+            const GlassPanel(
+              child: Text(
+                'No missions logged yet. Start a mission and your history will appear here.',
+              ),
+            )
+          else if (!wide)
+            ...recentSessions.map(
+              (session) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _SessionCard(session: session),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 24,
+              runSpacing: 24,
+              children: [
+                ...recentSessions.map(
+                  (session) => SizedBox(
+                    width: cardWidth,
+                    child: _SessionCard(session: session),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ...recentSessions.map(
-          (session) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _SessionCard(session: session),
-          ),
-        ),
-      ],
+        ];
+
+        return ListView(
+          padding: adaptiveScreenPadding(context),
+          children: [
+            if (!wide)
+              ...content
+            else
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 980),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: content,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -45,6 +88,12 @@ class _ModeChip extends StatelessWidget {
   final GameMode mode;
   const _ModeChip(this.mode);
 
+  Color get _color => switch (mode) {
+        GameMode.dailyPulse => KuglaColors.amber,
+        GameMode.worldAtlas => KuglaColors.cyan,
+        GameMode.landmarkLock => KuglaColors.rose,
+      };
+
   @override
   Widget build(BuildContext context) {
     final (label, icon) = switch (mode) {
@@ -52,24 +101,25 @@ class _ModeChip extends StatelessWidget {
       GameMode.worldAtlas => ('World Atlas', Icons.public_rounded),
       GameMode.landmarkLock => ('Landmark Lock', Icons.terrain_rounded),
     };
+    final color = _color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: KuglaColors.midnight,
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: KuglaColors.stroke),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: KuglaColors.textMuted),
+          Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: KuglaColors.textMuted,
+            style: TextStyle(
+              color: color,
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -102,7 +152,7 @@ class _SessionCard extends StatelessWidget {
     final Color accent;
     final String tier;
     if (score >= 4000 * session.rounds.length) {
-      accent = KuglaColors.cyan;
+      accent = KuglaColors.success;
       tier = 'Sharp';
     } else if (score >= 2500 * session.rounds.length) {
       accent = KuglaColors.amber;
@@ -181,28 +231,46 @@ class _SessionCard extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     ...countries.map(
-                      (c) => Chip(
-                        avatar: const Icon(Icons.public_rounded, size: 14),
-                        label: Text(c),
-                        padding: EdgeInsets.zero,
+                      (c) => Theme(
+                        data: Theme.of(context).copyWith(
+                          chipTheme: Theme.of(context).chipTheme.copyWith(
+                                backgroundColor:
+                                    KuglaColors.success.withValues(alpha: 0.08),
+                              ),
+                        ),
+                        child: Chip(
+                          avatar: const Icon(
+                            Icons.public_rounded,
+                            size: 14,
+                            color: KuglaColors.success,
+                          ),
+                          label: Text(c),
+                          padding: EdgeInsets.zero,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: session.rounds
-                      .map(
-                        (r) => Chip(
-                          label: Text(
-                            '${r.locationName}  ${r.distanceKm.toStringAsFixed(0)} km',
+                if (session.rounds.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ...session.rounds.take(3).map(
+                            (r) => Chip(
+                              label: Text(
+                                '${r.locationName}  ${r.distanceKm.toStringAsFixed(0)} km',
+                              ),
+                            ),
                           ),
+                      if (session.rounds.length > 3)
+                        Chip(
+                          label: Text('+${session.rounds.length - 3} more'),
                         ),
-                      )
-                      .toList(),
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

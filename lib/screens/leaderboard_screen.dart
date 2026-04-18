@@ -44,91 +44,103 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          child: GlassPanel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader(
-                  eyebrow: 'Leaderboard',
-                  title: 'Hall of Navigators',
-                  subtitle: 'Family rankings and your personal best missions.',
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  decoration: BoxDecoration(
-                    color: KuglaColors.midnight,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    dividerColor: Colors.transparent,
-                    indicator: BoxDecoration(
-                      color: KuglaColors.cyan.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
+          padding: adaptiveScreenPadding(context, bottom: 0, top: 20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 980),
+              child: GlassPanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SectionHeader(
+                      eyebrow: 'Leaderboard',
+                      title: 'Hall of Navigators',
+                      subtitle:
+                          'Family rankings and your personal best missions.',
                     ),
-                    labelColor: KuglaColors.cyanSoft,
-                    unselectedLabelColor: KuglaColors.textMuted,
-                    tabs: const [
-                      Tab(text: 'Family'),
-                      Tab(text: 'Personal best'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _modes.map((entry) {
-                      final (mode, label, icon) = entry;
-                      final selected = _modeFilter == mode;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () => setState(() => _modeFilter = mode),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? KuglaColors.cyan.withValues(alpha: 0.14)
-                                  : KuglaColors.midnight,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: selected
-                                    ? KuglaColors.cyan.withValues(alpha: 0.4)
-                                    : Colors.transparent,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(icon,
-                                    size: 13,
+                    const SizedBox(height: 16),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: KuglaColors.midnight,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        dividerColor: Colors.transparent,
+                        indicator: BoxDecoration(
+                          color: KuglaColors.cyan.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        labelColor: KuglaColors.cyanSoft,
+                        unselectedLabelColor: KuglaColors.textMuted,
+                        tabs: const [
+                          Tab(text: 'Family'),
+                          Tab(text: 'Personal best'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _modes.map((entry) {
+                          final (mode, label, icon) = entry;
+                          final selected = _modeFilter == mode;
+                          final selectedColor = switch (mode) {
+                            GameMode.dailyPulse => KuglaColors.amber,
+                            GameMode.worldAtlas => KuglaColors.cyan,
+                            GameMode.landmarkLock => KuglaColors.rose,
+                            null => KuglaColors.cyan,
+                          };
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: () => setState(() => _modeFilter = mode),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? selectedColor.withValues(alpha: 0.14)
+                                      : KuglaColors.midnight,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
                                     color: selected
-                                        ? KuglaColors.cyanSoft
-                                        : KuglaColors.textMuted),
-                                const SizedBox(width: 5),
-                                Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: selected
-                                        ? KuglaColors.cyanSoft
-                                        : KuglaColors.textMuted,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+                                        ? selectedColor.withValues(alpha: 0.4)
+                                        : Colors.transparent,
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(icon,
+                                        size: 13,
+                                        color: selected
+                                            ? selectedColor
+                                            : KuglaColors.textMuted),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: selected
+                                            ? selectedColor
+                                            : KuglaColors.textMuted,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -215,22 +227,27 @@ class _FamilyTab extends StatelessWidget {
           null => 'best',
         };
 
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-          itemCount: entries.length,
-          itemBuilder: (context, index) {
-            final entry = entries[index];
-            final isMe = entry.displayName.trim().toLowerCase() ==
-                displayName.toLowerCase();
-            final score = entry.bestScoreForMode(modeFilter);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: GlassPanel(
-                color: isMe
-                    ? KuglaColors.cyan.withValues(alpha: 0.08)
-                    : null,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 960;
+            final constrainedWidth =
+                constraints.maxWidth < 980 ? constraints.maxWidth : 980.0;
+            final cardWidth = wide ? (constrainedWidth - 24) / 2 : null;
+            final cards = List<Widget>.generate(entries.length, (index) {
+              final entry = entries[index];
+              final isMe = entry.displayName.trim().toLowerCase() ==
+                  displayName.toLowerCase();
+              final score = entry.bestScoreForMode(modeFilter);
+              final rankColor = switch (index) {
+                0 => KuglaColors.amber,
+                1 => KuglaColors.textMuted,
+                2 => KuglaColors.rose,
+                _ => isMe ? KuglaColors.cyanSoft : KuglaColors.text,
+              };
+              return GlassPanel(
+                color: isMe ? KuglaColors.cyan.withValues(alpha: 0.08) : null,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     SizedBox(
@@ -242,9 +259,7 @@ class _FamilyTab extends StatelessWidget {
                             .titleLarge
                             ?.copyWith(
                               fontWeight: FontWeight.w900,
-                              color: isMe
-                                  ? KuglaColors.cyanSoft
-                                  : null,
+                              color: rankColor,
                             ),
                       ),
                     ),
@@ -254,15 +269,14 @@ class _FamilyTab extends StatelessWidget {
                         children: [
                           Text(
                             entry.displayName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w800),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 3),
                           Text(
                             '${entry.missionsPlayed} missions · ${entry.roundsPlayed} rounds',
                             style: const TextStyle(
-                                color: KuglaColors.textMuted,
-                                fontSize: 12),
+                                color: KuglaColors.textMuted, fontSize: 12),
                           ),
                         ],
                       ),
@@ -272,20 +286,51 @@ class _FamilyTab extends StatelessWidget {
                       children: [
                         Text(
                           score > 0 ? '$score' : '--',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900),
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w900),
                         ),
                         Text(
                           scoreLabel,
                           style: const TextStyle(
-                              color: KuglaColors.textMuted,
-                              fontSize: 12),
+                              color: KuglaColors.textMuted, fontSize: 12),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ),
+              );
+            });
+
+            if (!wide) {
+              return ListView.separated(
+                padding: adaptiveScreenPadding(context),
+                itemCount: cards.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) => cards[index],
+              );
+            }
+
+            return ListView(
+              padding: adaptiveScreenPadding(context),
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 980),
+                    child: Wrap(
+                      spacing: 24,
+                      runSpacing: 24,
+                      children: [
+                        ...cards.map(
+                          (card) => SizedBox(
+                            width: cardWidth,
+                            child: card,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         );
@@ -306,6 +351,12 @@ class _PersonalBestTab extends StatelessWidget {
         GameMode.landmarkLock => 'Landmark Lock',
       };
 
+  static Color _modeColor(GameMode mode) => switch (mode) {
+        GameMode.dailyPulse => KuglaColors.amber,
+        GameMode.worldAtlas => KuglaColors.cyan,
+        GameMode.landmarkLock => KuglaColors.rose,
+      };
+
   @override
   Widget build(BuildContext context) {
     final allBest = snapshot.bestSessions;
@@ -322,17 +373,18 @@ class _PersonalBestTab extends StatelessWidget {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-      itemCount: best.length,
-      itemBuilder: (context, index) {
-        final session = best[index];
-        final maxScore = 5000 * session.rounds.length;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: GlassPanel(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 960;
+        final constrainedWidth =
+            constraints.maxWidth < 980 ? constraints.maxWidth : 980.0;
+        final cardWidth = wide ? (constrainedWidth - 24) / 2 : null;
+        final cards = List<Widget>.generate(best.length, (index) {
+          final session = best[index];
+          final maxScore = 5000 * session.rounds.length;
+          final progressColor = _modeColor(session.gameMode);
+          return GlassPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 SizedBox(
@@ -351,15 +403,13 @@ class _PersonalBestTab extends StatelessWidget {
                     children: [
                       Text(
                         '${session.totalScore} pts',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         '${_modeLabel(session.gameMode)}  ·  ${session.rounds.length} rounds  ·  ${session.averageDistanceKm.toStringAsFixed(0)} km avg',
                         style: const TextStyle(
-                            color: KuglaColors.textMuted,
-                            fontSize: 12),
+                            color: KuglaColors.textMuted, fontSize: 12),
                       ),
                     ],
                   ),
@@ -371,14 +421,46 @@ class _PersonalBestTab extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: session.totalScore / maxScore,
                       minHeight: 6,
-                      color: KuglaColors.cyan,
+                      color: progressColor,
                       backgroundColor: KuglaColors.midnight,
                     ),
                   ),
                 ),
               ],
             ),
-          ),
+          );
+        });
+
+        if (!wide) {
+          return ListView.separated(
+            padding: adaptiveScreenPadding(context),
+            itemCount: cards.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => cards[index],
+          );
+        }
+
+        return ListView(
+          padding: adaptiveScreenPadding(context),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 980),
+                child: Wrap(
+                  spacing: 24,
+                  runSpacing: 24,
+                  children: [
+                    ...cards.map(
+                      (card) => SizedBox(
+                        width: cardWidth,
+                        child: card,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -394,7 +476,7 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+      padding: adaptiveScreenPadding(context),
       children: [
         GlassPanel(
           child: Column(

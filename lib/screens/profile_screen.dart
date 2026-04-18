@@ -113,10 +113,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
-        children: [
-          GlassPanel(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 980;
+          final profileHeader = GlassPanel(
             child: Row(
               children: [
                 GestureDetector(
@@ -148,8 +148,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         decoration: BoxDecoration(
                           color: KuglaColors.cyan,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: KuglaColors.panel, width: 2),
+                          border:
+                              Border.all(color: KuglaColors.panel, width: 2),
                         ),
                         child: const Icon(Icons.camera_alt_rounded,
                             size: 11, color: KuglaColors.deepSpace),
@@ -172,16 +172,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          Chip(label: Text('${snapshot.totalSessions} missions')),
                           Chip(
+                            avatar: const Icon(Icons.flag_rounded,
+                                size: 14, color: KuglaColors.cyan),
+                            label: Text('${snapshot.totalSessions} missions'),
+                          ),
+                          Chip(
+                            avatar: const Icon(
+                                Icons.local_fire_department_rounded,
+                                size: 14,
+                                color: KuglaColors.amber),
                             label: Text(
                               snapshot.currentStreakDays == 0
                                   ? 'No streak'
                                   : '${snapshot.currentStreakDays}d streak',
                             ),
                           ),
-                          Chip(label: Text('${snapshot.exploredCountries} countries')),
+                          Chip(
+                            avatar: const Icon(Icons.public_rounded,
+                                size: 14, color: KuglaColors.success),
+                            label:
+                                Text('${snapshot.exploredCountries} countries'),
+                          ),
                         ],
                       ),
                     ],
@@ -189,122 +203,177 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 24),
-          const SectionHeader(
-            eyebrow: 'Family',
-            title: 'Shared leaderboard setup',
-          ),
-          const SizedBox(height: 12),
-          GlassPanel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: _displayNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display name',
-                    hintText: 'e.g. Bobby or Dad',
-                  ),
+          );
+
+          final familySection = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionHeader(
+                eyebrow: 'Family',
+                title: 'Shared leaderboard setup',
+              ),
+              const SizedBox(height: 12),
+              GlassPanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _displayNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Display name',
+                        hintText: 'e.g. Bobby or Dad',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _familyCodeController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Family code',
+                        hintText: 'e.g. KUGLAFAM',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Use the same family code on both phones to share a private leaderboard.',
+                      style: TextStyle(color: KuglaColors.textMuted),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _familyCodeController,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Family code',
-                    hintText: 'e.g. KUGLAFAM',
-                  ),
+              ),
+            ],
+          );
+
+          final gameplaySection = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionHeader(
+                eyebrow: 'Gameplay',
+                title: 'Mission settings',
+              ),
+              const SizedBox(height: 12),
+              GlassPanel(
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _settings.showStreetNames,
+                      onChanged: (value) => setState(
+                          () => _settings =
+                              _settings.copyWith(showStreetNames: value)),
+                      title: const Text('Show street names'),
+                      subtitle:
+                          const Text('Toggle road labels during missions.'),
+                    ),
+                    const Divider(),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _settings.allowMovement,
+                      onChanged: (value) => setState(
+                          () => _settings =
+                              _settings.copyWith(allowMovement: value)),
+                      title: const Text('Allow movement'),
+                      subtitle: const Text(
+                          'Enable walking to adjacent panoramas.'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Use the same family code on both phones to share a private leaderboard.',
-                  style: TextStyle(color: KuglaColors.textMuted),
+              ),
+              const SizedBox(height: 24),
+              GlassPanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Rounds per mission',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('${_settings.roundsPerMission} rounds'),
+                    Slider(
+                      min: kMinRoundsPerMission.toDouble(),
+                      max: kMaxRoundsPerMission.toDouble(),
+                      divisions: kMaxRoundsPerMission - kMinRoundsPerMission,
+                      label: '${_settings.roundsPerMission}',
+                      value: _settings.roundsPerMission.toDouble(),
+                      onChanged: (value) => setState(
+                        () => _settings = _settings.copyWith(
+                            roundsPerMission: value.round()),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          const SectionHeader(
-            eyebrow: 'Gameplay',
-            title: 'Mission settings',
-          ),
-          const SizedBox(height: 12),
-          GlassPanel(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _settings.showStreetNames,
-                  onChanged: (value) =>
-                      setState(() => _settings = _settings.copyWith(showStreetNames: value)),
-                  title: const Text('Show street names'),
-                  subtitle: const Text('Toggle road labels during missions.'),
+              ),
+            ],
+          );
+
+          final statsSection = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionHeader(
+                eyebrow: 'Stats',
+                title: 'Local record summary',
+              ),
+              const SizedBox(height: 12),
+              TelemetryTile(
+                label: 'Average round score',
+                value: snapshot.totalRounds == 0
+                    ? '--'
+                    : snapshot.averageRoundScore.toStringAsFixed(0),
+                icon: Icons.stacked_line_chart_rounded,
+                accent: KuglaColors.cyan,
+              ),
+              const SizedBox(height: 12),
+              TelemetryTile(
+                label: 'Average distance',
+                value: snapshot.totalRounds == 0
+                    ? '--'
+                    : '${snapshot.averageDistanceKm.toStringAsFixed(0)} km',
+                icon: Icons.pin_drop_rounded,
+                accent: KuglaColors.amber,
+              ),
+            ],
+          );
+
+          return ListView(
+            padding: adaptiveScreenPadding(context, bottom: 40),
+            children: [
+              profileHeader,
+              const SizedBox(height: 24),
+              if (!wide) ...[
+                familySection,
+                const SizedBox(height: 24),
+                gameplaySection,
+                const SizedBox(height: 24),
+                statsSection,
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          familySection,
+                          const SizedBox(height: 24),
+                          statsSection,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 7,
+                      child: gameplaySection,
+                    ),
+                  ],
                 ),
-                const Divider(),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _settings.allowMovement,
-                  onChanged: (value) =>
-                      setState(() => _settings = _settings.copyWith(allowMovement: value)),
-                  title: const Text('Allow movement'),
-                  subtitle: const Text('Enable walking to adjacent panoramas.'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          GlassPanel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Rounds per mission',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                Text('${_settings.roundsPerMission} rounds'),
-                Slider(
-                  min: kMinRoundsPerMission.toDouble(),
-                  max: kMaxRoundsPerMission.toDouble(),
-                  divisions: kMaxRoundsPerMission - kMinRoundsPerMission,
-                  label: '${_settings.roundsPerMission}',
-                  value: _settings.roundsPerMission.toDouble(),
-                  onChanged: (value) => setState(
-                    () => _settings =
-                        _settings.copyWith(roundsPerMission: value.round()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          const SectionHeader(
-            eyebrow: 'Stats',
-            title: 'Local record summary',
-          ),
-          const SizedBox(height: 12),
-          TelemetryTile(
-            label: 'Average round score',
-            value: snapshot.totalRounds == 0
-                ? '--'
-                : snapshot.averageRoundScore.toStringAsFixed(0),
-            icon: Icons.stacked_line_chart_rounded,
-            accent: KuglaColors.cyan,
-          ),
-          const SizedBox(height: 12),
-          TelemetryTile(
-            label: 'Average distance',
-            value: snapshot.totalRounds == 0
-                ? '--'
-                : '${snapshot.averageDistanceKm.toStringAsFixed(0)} km',
-            icon: Icons.pin_drop_rounded,
-            accent: KuglaColors.amber,
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

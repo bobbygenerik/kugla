@@ -50,6 +50,12 @@ class _GameScreenState extends State<GameScreen> {
 
   LocationSeed get _currentSeed => _roundSeeds[_roundIndex];
 
+  Color get _modeAccent => switch (widget.gameMode) {
+        GameMode.dailyPulse => KuglaColors.amber,
+        GameMode.worldAtlas => KuglaColors.cyan,
+        GameMode.landmarkLock => KuglaColors.rose,
+      };
+
   @override
   void initState() {
     super.initState();
@@ -365,6 +371,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final modeAccent = _modeAccent;
     final missionScore =
         _results.fold<int>(0, (sum, result) => sum + result.score);
     final canOpenMap =
@@ -444,13 +451,13 @@ class _GameScreenState extends State<GameScreen> {
             Positioned.fill(
               child: ColoredBox(
                 color: KuglaColors.deepSpace.withValues(alpha: 0.67),
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: KuglaColors.cyan),
-                      SizedBox(height: 14),
-                      Text(
+                      CircularProgressIndicator(color: modeAccent),
+                      const SizedBox(height: 14),
+                      const Text(
                         'Locking onto Street View...',
                         style: TextStyle(
                           color: Colors.white,
@@ -560,7 +567,7 @@ class _GameScreenState extends State<GameScreen> {
                                   ? KuglaColors.rose
                                   : _secondsLeft <= 15
                                       ? KuglaColors.amber
-                                      : KuglaColors.cyan,
+                                      : modeAccent,
                             ),
                             if (_streak > 0) ...[
                               const SizedBox(width: 8),
@@ -587,6 +594,7 @@ class _GameScreenState extends State<GameScreen> {
                               key: ValueKey(missionScore),
                               icon: Icons.track_changes_rounded,
                               label: 'Score $missionScore',
+                              color: modeAccent,
                             ),
                           ),
                         ],
@@ -609,6 +617,7 @@ class _GameScreenState extends State<GameScreen> {
                                   icon: Icons.explore_rounded,
                                   label:
                                       'Round ${_roundIndex + 1} of ${_roundSeeds.length}',
+                                  color: modeAccent,
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
@@ -903,15 +912,16 @@ class _GameScreenState extends State<GameScreen> {
             Positioned.fill(
               child: ColoredBox(
                 color: KuglaColors.deepSpace.withValues(alpha: 0.67),
-                child: const Center(
+                child: Center(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(vertical: 40, horizontal: 12),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 40, horizontal: 12),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(color: KuglaColors.cyan),
-                        SizedBox(height: 14),
-                        Text(
+                        CircularProgressIndicator(color: modeAccent),
+                        const SizedBox(height: 14),
+                        const Text(
                           'Locking onto Street View...',
                           style: TextStyle(
                             color: Colors.white,

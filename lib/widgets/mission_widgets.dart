@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
 
+EdgeInsets adaptiveScreenPadding(BuildContext context,
+    {double? bottom, double top = 18}) {
+  final w = MediaQuery.sizeOf(context).width;
+  final h = w > 720 ? ((w - 680) / 2).clamp(20.0, 240.0) : 20.0;
+  final b = bottom ?? (w >= 768 ? 32.0 : 120.0);
+  return EdgeInsets.fromLTRB(h, top, h, b);
+}
+
 class SectionHeader extends StatelessWidget {
   final String eyebrow;
   final String title;
@@ -77,6 +85,13 @@ class GlassPanel extends StatelessWidget {
         color: color ?? KuglaColors.panel.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: KuglaColors.stroke),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(
         padding: padding ?? const EdgeInsets.all(20),
@@ -111,7 +126,7 @@ class TelemetryTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.16),
+              color: accent.withValues(alpha: 0.20),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: accent),
@@ -142,4 +157,3 @@ class TelemetryTile extends StatelessWidget {
     );
   }
 }
-

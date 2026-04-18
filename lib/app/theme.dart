@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Warm “chart room” palette: ink, paper, brass rule lines — not neon cyber UI.
+/// Polished, vibrant palette: deep map blacks with coral, rose, sage, and oat accents.
 class KuglaColors {
   static const deepSpace = Color(0xFF0E0D0B);
   static const midnight = Color(0xFF181614);
   static const panel = Color(0xFF23211E);
   static const panelRaised = Color(0xFF2D2A26);
 
-  /// Primary signal (historically named `cyan`); reads as chart brass / dry ink.
+  /// Primary signal (historically named `cyan`); warm oat accent used across Atlas surfaces.
   static const cyan = Color(0xFFD4B896);
   static const cyanSoft = Color(0xFFE8D4B8);
 
-  static const amber = Color(0xFFE3A14A);
+  static const amber = Color(0xFFFF6B57);
   static const rose = Color(0xFFC97D6B);
   static const lilac = Color(0xFF9A8FB0);
 

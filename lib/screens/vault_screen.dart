@@ -22,21 +22,19 @@ class _VaultScreenState extends State<VaultScreen> {
     final selected = achievements[_selectedIndex];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+      padding: adaptiveScreenPadding(context),
       children: [
         const SectionHeader(
           eyebrow: 'Vault',
           title: 'Star Vault',
           subtitle:
-              'Inspect achievement relics, route milestones, and unlock progress across the season.',
+              'Review achievement progress, route milestones, and the marks you have already earned.',
         ),
         const SizedBox(height: 18),
         LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxWidth < 900;
-            final collection = Expanded(
-              flex: compact ? 0 : 5,
-              child: GlassPanel(
+            final compact = constraints.maxWidth < 700;
+            final collectionPanel = GlassPanel(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -107,25 +105,35 @@ class _VaultScreenState extends State<VaultScreen> {
                     }),
                   ],
                 ),
-              ),
             );
 
-            final detail = Expanded(
-              flex: 6,
-              child: GlassPanel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            final detailPanel = GlassPanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          selected.color.withValues(alpha: 0.18),
+                          selected.color.withValues(alpha: 0.0),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
                       children: [
                         Container(
                           width: 58,
                           height: 58,
                           decoration: BoxDecoration(
-                            color: selected.color.withValues(alpha:0.16),
+                            color: selected.color.withValues(alpha: 0.22),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: Icon(selected.icon, color: selected.color),
+                          child: Icon(selected.icon, color: selected.color, size: 28),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -137,9 +145,7 @@ class _VaultScreenState extends State<VaultScreen> {
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w900,
-                                    ),
+                                    ?.copyWith(fontWeight: FontWeight.w900),
                               ),
                               const SizedBox(height: 4),
                               if (selected.unlocked)
@@ -164,44 +170,54 @@ class _VaultScreenState extends State<VaultScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      selected.description,
-                      style: const TextStyle(
-                          color: KuglaColors.textMuted, height: 1.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    selected.description,
+                    style:
+                        const TextStyle(color: KuglaColors.textMuted, height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: LinearProgressIndicator(
+                      minHeight: 12,
+                      value: selected.progress,
+                      backgroundColor: KuglaColors.midnight,
+                      color: selected.unlocked
+                          ? KuglaColors.success
+                          : selected.color,
                     ),
-                    const SizedBox(height: 18),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: LinearProgressIndicator(
-                        minHeight: 12,
-                        value: selected.progress,
-                        backgroundColor: KuglaColors.midnight,
-                        color: selected.unlocked
-                            ? KuglaColors.success
-                            : selected.color,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      selected.unlocked
-                          ? 'Complete!'
-                          : '${(selected.progress * 100).round()}% complete',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    selected.unlocked
+                        ? 'Complete!'
+                        : '${(selected.progress * 100).round()}% complete',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
             );
 
-            return compact
-                ? Column(
-                    children: [collection, const SizedBox(height: 12), detail])
-                : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    collection,
-                    const SizedBox(width: 12),
-                    detail,
-                  ]);
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  collectionPanel,
+                  const SizedBox(height: 12),
+                  detailPanel,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 5, child: collectionPanel),
+                const SizedBox(width: 12),
+                Expanded(flex: 6, child: detailPanel),
+              ],
+            );
           },
         ),
       ],
