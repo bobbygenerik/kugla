@@ -27,7 +27,7 @@ const missionModes = <MissionMode>[
     subtitle: 'Timed expedition',
     detail: 'Five timed rounds with daily seeding and bonus streak multipliers.',
     icon: Icons.flash_on_rounded,
-    color: KuglaColors.amber,
+    color: KuglaColors.pulse,
     gameMode: GameMode.dailyPulse,
   ),
   MissionMode(
@@ -35,7 +35,7 @@ const missionModes = <MissionMode>[
     subtitle: 'Classic roaming',
     detail: 'Flexible practice across the full location pool with your chosen round count.',
     icon: Icons.public_rounded,
-    color: KuglaColors.cyan,
+    color: KuglaColors.atlas,
     gameMode: GameMode.worldAtlas,
   ),
   MissionMode(
@@ -43,7 +43,7 @@ const missionModes = <MissionMode>[
     subtitle: 'Precision route',
     detail: 'Famous places with tighter score windows and more exact reads.',
     icon: Icons.terrain_rounded,
-    color: KuglaColors.rose,
+    color: KuglaColors.landmark,
     gameMode: GameMode.landmarkLock,
   ),
 ];

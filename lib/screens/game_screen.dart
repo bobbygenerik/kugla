@@ -7,10 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as map_view;
 
+import '../app/mode_style.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
 
 const _mapsConfigChannel = MethodChannel('kugla/maps_config');
+
+/// Shared world overview — never centered on [LocationSeed] (would spoil the round).
+const _kMapWorldOverview = map_view.CameraPosition(
+  target: map_view.LatLng(20, 0),
+  zoom: 1.25,
+);
 
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
@@ -50,11 +57,7 @@ class _GameScreenState extends State<GameScreen> {
 
   LocationSeed get _currentSeed => _roundSeeds[_roundIndex];
 
-  Color get _modeAccent => switch (widget.gameMode) {
-        GameMode.dailyPulse => KuglaColors.amber,
-        GameMode.worldAtlas => KuglaColors.cyan,
-        GameMode.landmarkLock => KuglaColors.rose,
-      };
+  Color get _modeAccent => kuglaModeColor(widget.gameMode);
 
   @override
   void initState() {
@@ -436,7 +439,7 @@ class _GameScreenState extends State<GameScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xB00E0C09),
+                      KuglaColors.midnight.withValues(alpha: 0.72),
                       KuglaColors.deepSpace.withValues(alpha: 0.28),
                       KuglaColors.deepSpace.withValues(alpha: 0.10),
                       KuglaColors.midnight.withValues(alpha: 0.78),
@@ -490,8 +493,8 @@ class _GameScreenState extends State<GameScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
-                                Icons.warning_amber_rounded,
-                                color: KuglaColors.amber,
+                                Icons.warning_rounded,
+                                color: KuglaColors.rose,
                                 size: 44,
                               ),
                               const SizedBox(height: 14),
@@ -566,7 +569,7 @@ class _GameScreenState extends State<GameScreen> {
                               color: _secondsLeft <= 5
                                   ? KuglaColors.rose
                                   : _secondsLeft <= 15
-                                      ? KuglaColors.amber
+                                      ? KuglaColors.cyan
                                       : modeAccent,
                             ),
                             if (_streak > 0) ...[
@@ -574,7 +577,7 @@ class _GameScreenState extends State<GameScreen> {
                               _HudChip(
                                 icon: Icons.local_fire_department_rounded,
                                 label: '${_streak}x',
-                                color: KuglaColors.amber,
+                                color: KuglaColors.pulse,
                               ),
                             ],
                             const SizedBox(width: 8),
@@ -683,6 +686,8 @@ class _GameScreenState extends State<GameScreen> {
                         child: !_mapExpanded
                             ? Stack(
                                 children: [
+                                  // Decorative preview only (no second GoogleMap) —
+                                  // avoids sharing Maps/Street View init on Android (crash regression check).
                                   const Positioned.fill(
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
@@ -690,9 +695,9 @@ class _GameScreenState extends State<GameScreen> {
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
                                           colors: [
-                                            Color(0xFF2A2520),
+                                            KuglaColors.graphite,
                                             KuglaColors.midnight,
-                                            Color(0xFF1E2822),
+                                            KuglaColors.panel,
                                           ],
                                         ),
                                       ),
@@ -786,12 +791,7 @@ class _GameScreenState extends State<GameScreen> {
                                                 mapType:
                                                     map_view.MapType.normal,
                                                 initialCameraPosition:
-                                                    const map_view
-                                                        .CameraPosition(
-                                                  target:
-                                                      map_view.LatLng(20, 0),
-                                                  zoom: 1.2,
-                                                ),
+                                                    _kMapWorldOverview,
                                                 onTap: (pos) => setState(
                                                     () => _userGuess = pos),
                                                 markers: _userGuess == null
@@ -958,8 +958,8 @@ class _GameScreenState extends State<GameScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(
-                                  Icons.warning_amber_rounded,
-                                  color: KuglaColors.amber,
+                                  Icons.warning_rounded,
+                                  color: KuglaColors.rose,
                                   size: 44,
                                 ),
                                 const SizedBox(height: 14),
@@ -1075,11 +1075,11 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
     final String label;
     final IconData icon;
     if (score >= 4000) {
-      accent = KuglaColors.cyan;
+      accent = KuglaColors.success;
       label = 'Sharp eye';
       icon = Icons.my_location_rounded;
     } else if (score >= 2500) {
-      accent = KuglaColors.amber;
+      accent = KuglaColors.atlas;
       label = 'On target';
       icon = Icons.track_changes_rounded;
     } else {
@@ -1200,21 +1200,21 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
-                          color: KuglaColors.amber.withValues(alpha: 0.12),
+                          color: KuglaColors.pulse.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                              color: KuglaColors.amber.withValues(alpha: 0.3)),
+                              color: KuglaColors.pulse.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.local_fire_department_rounded,
-                                size: 14, color: KuglaColors.amber),
+                                size: 14, color: KuglaColors.pulse),
                             const SizedBox(width: 5),
                             Text(
                               '${widget.streakLength}x streak · +${((widget.multiplier - 1) * 100).round()}% bonus',
                               style: const TextStyle(
-                                color: KuglaColors.amber,
+                                color: KuglaColors.cyanSoft,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
                               ),
@@ -1229,21 +1229,21 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
-                          color: KuglaColors.amber.withValues(alpha: 0.10),
+                          color: KuglaColors.rose.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                              color: KuglaColors.amber.withValues(alpha: 0.25)),
+                              color: KuglaColors.rose.withValues(alpha: 0.25)),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.terrain_rounded,
-                                size: 14, color: KuglaColors.amber),
+                                size: 14, color: KuglaColors.rose),
                             SizedBox(width: 5),
                             Text(
                               'Landmark Lock · precision scoring',
                               style: TextStyle(
-                                color: KuglaColors.amber,
+                                color: KuglaColors.rose,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
                               ),
@@ -1464,11 +1464,11 @@ class _ResultMapPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
     canvas.drawLine(targetPt, guessPt, linePaint);
 
-    // Target marker (green)
+    // Target marker (on-theme success green)
     canvas.drawCircle(
       targetPt,
       7,
-      Paint()..color = KuglaColors.amber,
+      Paint()..color = KuglaColors.success,
     );
     canvas.drawCircle(
       targetPt,

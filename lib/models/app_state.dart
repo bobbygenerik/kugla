@@ -434,7 +434,7 @@ class AppSnapshot {
         progress: _ratio(totalPerfectishRounds, 3),
         unlocked: totalPerfectishRounds >= 3,
         icon: Icons.track_changes_rounded,
-        color: KuglaColors.amber,
+        color: KuglaColors.pulse,
       ),
       AchievementProgress(
         title: 'Road Warrior',
@@ -823,7 +823,7 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     latitude: 50.0618,
     longitude: 19.9373,
     clue:
-        'Mixed older blocks, trams nearby, and a central European street pattern.',
+        'Mixed older blocks, trams nearby, and a dense older-city street pattern.',
   ),
   _StreetViewAnchor(
     id: 'buenos_aires',
@@ -897,7 +897,7 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     latitude: 34.6937,
     longitude: 135.5023,
     clue:
-        'Tight streets, dense storefronts, and layered urban details in a major East Asian metro.',
+        'Tight streets, dense storefronts, and layered urban details in a busy regional hub.',
     variantCount: 42,
   ),
   _StreetViewAnchor(
@@ -918,6 +918,6 @@ const _streetViewAnchors = <_StreetViewAnchor>[
     latitude: 50.0755,
     longitude: 14.4378,
     clue:
-        'Older facades, tram-friendly streets, and dense central European blocks.',
+        'Older facades, tram-friendly streets, and dense historic-city blocks.',
   ),
 ];

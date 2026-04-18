@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../app/theme.dart';
 import '../models/app_state.dart';
+import '../widgets/kugla_map_backdrop.dart';
 import '../widgets/mission_widgets.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
@@ -113,8 +114,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const KuglaMapBackdrop(),
+          LayoutBuilder(
+            builder: (context, constraints) {
           final wide = constraints.maxWidth >= 980;
           final profileHeader = GlassPanel(
             child: Row(
@@ -130,7 +135,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
-                            colors: [KuglaColors.amber, KuglaColors.rose],
+                            colors: [KuglaColors.pulse, KuglaColors.rose],
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,
@@ -183,7 +188,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                             avatar: const Icon(
                                 Icons.local_fire_department_rounded,
                                 size: 14,
-                                color: KuglaColors.amber),
+                                color: KuglaColors.pulse),
                             label: Text(
                               snapshot.currentStreakDays == 0
                                   ? 'No streak'
@@ -333,13 +338,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     ? '--'
                     : '${snapshot.averageDistanceKm.toStringAsFixed(0)} km',
                 icon: Icons.pin_drop_rounded,
-                accent: KuglaColors.amber,
+                accent: KuglaColors.fog,
               ),
             ],
           );
 
           return ListView(
-            padding: adaptiveScreenPadding(context, bottom: 40),
+            padding: adaptiveScreenPadding(context),
             children: [
               profileHeader,
               const SizedBox(height: 24),
@@ -373,7 +378,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ),
             ],
           );
-        },
+            },
+          ),
+        ],
       ),
     );
   }

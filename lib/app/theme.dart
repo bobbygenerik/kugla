@@ -1,35 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Polished, vibrant palette: deep map blacks with coral, rose, sage, and oat accents.
+/// Industrial atlas palette — aligned with `output/mockups/generate_ui_mockups.py`.
 class KuglaColors {
-  static const deepSpace = Color(0xFF0E0D0B);
-  static const midnight = Color(0xFF181614);
-  static const panel = Color(0xFF23211E);
-  static const panelRaised = Color(0xFF2D2A26);
+  static const deepSpace = Color(0xFF0B0D12);
+  static const midnight = Color(0xFF12161D);
+  static const panel = Color(0xFF1A1F27);
+  static const panelRaised = Color(0xFF212833);
+  static const graphite = Color(0xFF20252D);
 
-  /// Primary signal (historically named `cyan`); warm oat accent used across Atlas surfaces.
-  static const cyan = Color(0xFFD4B896);
-  static const cyanSoft = Color(0xFFE8D4B8);
+  /// Primary label / ice highlights (mockup `ICE`).
+  static const cyan = Color(0xFF9FC3FF);
+  static const cyanSoft = Color(0xFFD9E8FF);
 
-  static const amber = Color(0xFFFF6B57);
-  static const rose = Color(0xFFC97D6B);
-  static const lilac = Color(0xFF9A8FB0);
+  /// Daily Pulse & primary actions (mockup `OCEAN`).
+  static const pulse = Color(0xFF3E7CBF);
 
-  static const success = Color(0xFF7CAA8E);
+  /// World Atlas (mockup `JADE`).
+  static const atlas = Color(0xFF5FAF98);
 
-  static const text = Color(0xFFF2EBE3);
-  static const textMuted = Color(0xFF9B968C);
+  /// Landmark Lock (mockup `TERRACOTTA`).
+  static const landmark = Color(0xFFC7775A);
 
-  /// Faint warm rules, like printed grid lines.
-  static const stroke = Color(0x4DD4B896);
+  /// Mauve secondary (mockup `ROSE`).
+  static const rose = Color(0xFFB48AA0);
+
+  /// Rough tier / cool secondary (mockup `INDIGO`).
+  static const lilac = Color(0xFF6D78B8);
+
+  static const success = Color(0xFF83B7A4);
+
+  static const text = Color(0xFFF4F7FB);
+  static const textMuted = Color(0xFF9DA7B6);
+
+  /// Mockup `STROKE` — solid border.
+  static const stroke = Color(0xFF2D3644);
+
+  /// Silver-muted chips (mockup `FOG`).
+  static const fog = Color(0xFFA9B5C6);
 }
 
 TextStyle? _withTextColor(TextStyle? style) =>
     style?.copyWith(color: KuglaColors.text);
 
-/// Narrow display (Barlow Condensed) for display / headline / title; humanist
-/// body (Source Sans 3) for body and labels.
 TextTheme _kuglaTextTheme(TextTheme base) {
   final humanist = GoogleFonts.sourceSans3TextTheme(base);
   final narrow = GoogleFonts.barlowCondensedTextTheme(base);
@@ -55,8 +68,9 @@ TextTheme _kuglaTextTheme(TextTheme base) {
 
 ThemeData buildKuglaTheme() {
   const colorScheme = ColorScheme.dark(
-    primary: KuglaColors.cyan,
-    secondary: KuglaColors.amber,
+    primary: KuglaColors.pulse,
+    onPrimary: KuglaColors.text,
+    secondary: KuglaColors.atlas,
     surface: KuglaColors.panel,
     onSurface: KuglaColors.text,
   );
@@ -84,7 +98,7 @@ ThemeData buildKuglaTheme() {
     ),
     chipTheme: base.chipTheme.copyWith(
       backgroundColor: KuglaColors.panelRaised,
-      selectedColor: KuglaColors.cyan.withValues(alpha: 0.14),
+      selectedColor: KuglaColors.pulse.withValues(alpha: 0.14),
       side: const BorderSide(color: KuglaColors.stroke),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       labelStyle: GoogleFonts.sourceSans3(

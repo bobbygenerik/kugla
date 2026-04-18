@@ -16,98 +16,122 @@ class VaultScreen extends StatefulWidget {
 class _VaultScreenState extends State<VaultScreen> {
   int _selectedIndex = 0;
 
+  Widget _innerPanel({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: KuglaColors.midnight.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: KuglaColors.stroke),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final achievements = widget.snapshot.achievements;
     final selected = achievements[_selectedIndex];
 
-    return ListView(
-      padding: adaptiveScreenPadding(context),
-      children: [
-        const SectionHeader(
-          eyebrow: 'Vault',
-          title: 'Star Vault',
-          subtitle:
-              'Review achievement progress, route milestones, and the marks you have already earned.',
-        ),
-        const SizedBox(height: 18),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 700;
-            final collectionPanel = GlassPanel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Achievement collection',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 14),
-                    ...List.generate(achievements.length, (index) {
+    final panel = Theme(
+      data: Theme.of(context).copyWith(
+        textTheme: Theme.of(context).textTheme.copyWith(
+              bodyMedium: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: KuglaColors.fog,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+            ),
+      ),
+      child: GlassPanel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SectionHeader(
+              eyebrow: 'Progress',
+              // App bar already says STAR VAULT — don’t repeat it here.
+              title: 'Marks & milestones',
+              subtitle:
+                  'Local achievement progress and the marks you have already earned from your missions.',
+            ),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 700;
+                final collectionPanel = _innerPanel(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Achievement collection',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 14),
+                      ...List.generate(achievements.length, (index) {
                       final entry = achievements[index];
                       final selectedItem = index == _selectedIndex;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: () => setState(() => _selectedIndex = index),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: selectedItem
-                                  ? entry.color.withValues(alpha:0.14)
-                                  : KuglaColors.midnight,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => setState(() => _selectedIndex = index),
+                            child: Container(
+                              decoration: BoxDecoration(
                                 color: selectedItem
-                                    ? entry.color.withValues(alpha:0.6)
-                                    : Colors.transparent,
-                              ),
-                            ),
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              children: [
-                                Icon(entry.icon, color: entry.color),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(entry.title,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w800)),
-                                      const SizedBox(height: 4),
-                                      Text(entry.metricLabel,
-                                          style: const TextStyle(
-                                              color: KuglaColors.textMuted,
-                                              fontSize: 12)),
-                                    ],
-                                  ),
+                                    ? entry.color.withValues(alpha: 0.14)
+                                    : KuglaColors.midnight,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: selectedItem
+                                      ? entry.color.withValues(alpha: 0.6)
+                                      : Colors.transparent,
                                 ),
-                                if (entry.unlocked)
-                                  const Icon(Icons.check_circle_rounded,
-                                      size: 18, color: KuglaColors.success)
-                                else
-                                  Text(
-                                    '${(entry.progress * 100).round()}%',
-                                    style: TextStyle(
-                                      color: entry.color,
-                                      fontWeight: FontWeight.w700,
+                              ),
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                children: [
+                                  Icon(entry.icon, color: entry.color),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(entry.title,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w800)),
+                                        const SizedBox(height: 4),
+                                        Text(entry.metricLabel,
+                                            style: const TextStyle(
+                                                color: KuglaColors.textMuted,
+                                                fontSize: 12)),
+                                      ],
                                     ),
                                   ),
-                              ],
+                                  if (entry.unlocked)
+                                    const Icon(Icons.check_circle_rounded,
+                                        size: 18, color: KuglaColors.success)
+                                  else
+                                    Text(
+                                      '${(entry.progress * 100).round()}%',
+                                      style: TextStyle(
+                                        color: entry.color,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-            );
+                        );
+                      }),
+                    ],
+                  ),
+                );
 
-            final detailPanel = GlassPanel(
+            final detailPanel = _innerPanel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -219,6 +243,20 @@ class _VaultScreenState extends State<VaultScreen> {
               ],
             );
           },
+        ),
+        ],
+      ),
+    ),
+    );
+
+    return ListView(
+      padding: adaptiveScreenPadding(context),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 980),
+            child: panel,
+          ),
         ),
       ],
     );

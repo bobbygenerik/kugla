@@ -257,10 +257,9 @@ packages:
   flutter_google_street_view:
     dependency: "direct main"
     description:
-      name: flutter_google_street_view
-      sha256: "0f68d965f27ef9b284f35b86d55491da78d02ba3ea3623a14e80ae9b6522243d"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/packages/flutter_google_street_view"
+      relative: true
+    source: path
     version: "3.1.4"
   flutter_launcher_icons:
     dependency: "direct dev"

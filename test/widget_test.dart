@@ -19,6 +19,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mission Briefing'), findsNothing);
-    expect(find.textContaining('You see the ground.'), findsOneWidget);
+    expect(find.textContaining('Daily pulse is ready'), findsOneWidget);
+
+    await tester.tap(find.text('Records'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Hall of Navigators'), findsOneWidget);
+    expect(find.textContaining('Daily pulse is ready'), findsNothing);
+
+    await tester.tap(find.text('Explore'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Daily pulse is ready'), findsOneWidget);
   });
 }

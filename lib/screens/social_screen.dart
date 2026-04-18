@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/mode_style.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
 import '../widgets/mission_widgets.dart';
@@ -26,18 +27,24 @@ class SocialScreen extends StatelessWidget {
             : constraints.maxWidth;
         final cardWidth = wide ? (constrainedWidth - 24) / 2 : null;
 
-        final content = [
+        final panelBody = <Widget>[
           const SectionHeader(
             eyebrow: 'History',
-            title: 'Mission log',
+            // App bar already says MISSION LOG — don’t repeat it here.
+            title: 'Recent sessions',
             subtitle:
-                'A chronological record of the sessions you have completed.',
+                'Chronological record of missions you have completed, newest first.',
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           if (recentSessions.isEmpty)
-            const GlassPanel(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
               child: Text(
                 'No missions logged yet. Start a mission and your history will appear here.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: KuglaColors.textMuted,
+                      height: 1.45,
+                    ),
               ),
             )
           else if (!wide)
@@ -62,21 +69,36 @@ class SocialScreen extends StatelessWidget {
             ),
         ];
 
+        final panel = Theme(
+          data: Theme.of(context).copyWith(
+            textTheme: Theme.of(context).textTheme.copyWith(
+                  bodyMedium: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(
+                        color: KuglaColors.fog,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                ),
+          ),
+          child: GlassPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: panelBody,
+            ),
+          ),
+        );
+
         return ListView(
           padding: adaptiveScreenPadding(context),
           children: [
-            if (!wide)
-              ...content
-            else
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 980),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: content,
-                  ),
-                ),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 980),
+                child: panel,
               ),
+            ),
           ],
         );
       },
@@ -88,12 +110,6 @@ class _ModeChip extends StatelessWidget {
   final GameMode mode;
   const _ModeChip(this.mode);
 
-  Color get _color => switch (mode) {
-        GameMode.dailyPulse => KuglaColors.amber,
-        GameMode.worldAtlas => KuglaColors.cyan,
-        GameMode.landmarkLock => KuglaColors.rose,
-      };
-
   @override
   Widget build(BuildContext context) {
     final (label, icon) = switch (mode) {
@@ -101,7 +117,7 @@ class _ModeChip extends StatelessWidget {
       GameMode.worldAtlas => ('World Atlas', Icons.public_rounded),
       GameMode.landmarkLock => ('Landmark Lock', Icons.terrain_rounded),
     };
-    final color = _color;
+    final color = kuglaModeColor(mode);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -155,7 +171,7 @@ class _SessionCard extends StatelessWidget {
       accent = KuglaColors.success;
       tier = 'Sharp';
     } else if (score >= 2500 * session.rounds.length) {
-      accent = KuglaColors.amber;
+      accent = KuglaColors.atlas;
       tier = 'Decent';
     } else {
       accent = KuglaColors.lilac;

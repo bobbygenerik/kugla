@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../app/build_stamp.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
+import '../widgets/kugla_gradient_title.dart';
+import '../widgets/kugla_shell_backdrop.dart';
 import '../widgets/mission_widgets.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -64,6 +67,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool get _isLastPage => _page == _totalPages - 1;
   bool get _isProfilePage =>
       widget.showProfileSetup && _page == _infoPages.length;
+
+  String get _eyebrowLabel {
+    if (_isProfilePage) return 'PROFILE';
+    return 'BRIEFING · ${_page + 1} OF ${_infoPages.length}';
+  }
 
   @override
   void initState() {
@@ -155,55 +163,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final hPad = w > 720 ? ((w - 680) / 2).clamp(20.0, 240.0) : 20.0;
+    final contentPadding = adaptiveScreenPadding(
+      context,
+      includeFloatingNavReserve: false,
+      top: 12,
+    );
+
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  KuglaColors.deepSpace,
-                  KuglaColors.midnight,
-                  Color(0xFF141210),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      backgroundColor: KuglaColors.deepSpace,
+      body: KuglaShellBackdrop(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SafeArea(
+              bottom: false,
+              child: _OnboardingHeader(
+                hPad: hPad,
+                eyebrow: _eyebrowLabel,
+                title: _isProfilePage ? 'Create Profile' : 'Mission Briefing',
+                showTagline: !_isProfilePage,
+                showSkip: !_isProfilePage,
+                onSkip: () => Navigator.of(context).pop(),
               ),
             ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.public_rounded, color: KuglaColors.cyan),
-                      const SizedBox(width: 10),
-                      Text(
-                        _isProfilePage ? 'Create Profile' : 'Mission Briefing',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const Spacer(),
-                      if (!_isProfilePage)
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Skip'),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      physics: const NeverScrollableScrollPhysics(),
-                      onPageChanged: (v) => setState(() => _page = v),
-                      itemCount: _totalPages,
-                      itemBuilder: (context, index) {
+            Expanded(
+              child: Padding(
+                padding: contentPadding.copyWith(top: 8, bottom: 8),
+                child: PageView.builder(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (v) => setState(() => _page = v),
+                  itemCount: _totalPages,
+                  itemBuilder: (context, index) {
                         if (widget.showProfileSetup &&
                             index == _infoPages.length) {
                           return _ProfileSetupPage(
@@ -283,51 +276,142 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ),
                           ),
                         );
-                      },
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: adaptiveScreenPadding(
+                context,
+                includeFloatingNavReserve: false,
+                top: 0,
+              ),
+              child: Row(
+                children: [
+                  ...List.generate(
+                    _totalPages,
+                    (index) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.only(right: 8),
+                      width: _page == index ? 28 : 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: _page == index
+                            ? KuglaColors.pulse
+                            : Colors.white24,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      ...List.generate(
-                        _totalPages,
-                        (index) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          margin: const EdgeInsets.only(right: 8),
-                          width: _page == index ? 28 : 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: _page == index
-                                ? KuglaColors.cyan
-                                : Colors.white24,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      FilledButton.icon(
-                        onPressed: _saving ? null : _next,
-                        icon: _saving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: KuglaColors.deepSpace),
-                              )
-                            : Icon(_isLastPage
-                                ? Icons.check_rounded
-                                : Icons.arrow_forward_rounded),
-                        label: Text(_isLastPage
-                            ? (_isProfilePage ? 'Launch Kugla' : 'Launch Kugla')
-                            : 'Next'),
-                      ),
-                    ],
+                  const Spacer(),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _next,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: KuglaColors.deepSpace),
+                          )
+                        : Icon(_isLastPage
+                            ? Icons.check_rounded
+                            : Icons.arrow_forward_rounded),
+                    label: Text(
+                        _isLastPage ? 'Launch Kugla' : 'Next'),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingHeader extends StatelessWidget {
+  final double hPad;
+  final String eyebrow;
+  final String title;
+  final bool showTagline;
+  final bool showSkip;
+  final VoidCallback onSkip;
+
+  const _OnboardingHeader({
+    required this.hPad,
+    required this.eyebrow,
+    required this.title,
+    required this.showTagline,
+    required this.showSkip,
+    required this.onSkip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shadows = [
+      Shadow(
+        color: Colors.black.withValues(alpha: 0.75),
+        blurRadius: 10,
+        offset: const Offset(0, 1),
+      ),
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        border: const Border(
+          bottom: BorderSide(color: KuglaColors.stroke),
+        ),
+        gradient: LinearGradient(
+          colors: [
+            KuglaColors.deepSpace.withValues(alpha: 0.92),
+            KuglaColors.midnight.withValues(alpha: 0.72),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.public_rounded, color: KuglaColors.cyan, size: 26),
           ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  eyebrow,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: KuglaColors.cyanSoft,
+                        letterSpacing: 1.4,
+                        fontWeight: FontWeight.w800,
+                        shadows: shadows,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                KuglaGradientTitle(title),
+                if (showTagline) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Street View drops · pin the globe · $kBuildStamp',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: KuglaColors.textMuted,
+                          letterSpacing: 0.15,
+                        ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (showSkip)
+            TextButton(
+              onPressed: onSkip,
+              child: const Text('Skip'),
+            ),
         ],
       ),
     );
@@ -368,7 +452,7 @@ class _ProfileSetupPage extends StatelessWidget {
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
-                            colors: [KuglaColors.amber, KuglaColors.rose],
+                            colors: [KuglaColors.cyan, KuglaColors.lilac],
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,

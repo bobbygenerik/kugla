@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/app_state.dart';
@@ -51,12 +53,14 @@ class _AppShellState extends State<AppShell> {
     await _remote.initialize();
     final snapshot = await _store.load();
     final firstLaunch = !await _store.hasSeenOnboarding();
-    if (_remote.isEnabled) {
-      await _remote.syncProfile(
-          settings: snapshot.settings, snapshot: snapshot);
-    }
     if (!mounted) return;
+    // Paint shell + tabs before remote sync — avoids a stuck await leaving a
+    // blank intermediate state on slow / flaky Firebase on device.
     setState(() => _snapshot = snapshot);
+    if (_remote.isEnabled) {
+      unawaited(_remote.syncProfile(
+          settings: snapshot.settings, snapshot: snapshot));
+    }
     if (firstLaunch) {
       await _store.markOnboardingSeen();
       WidgetsBinding.instance
@@ -177,14 +181,9 @@ class _AppShellState extends State<AppShell> {
       onOpenProfile: _openProfile,
       onOpenOnboarding: _openOnboarding,
       avatarPath: snapshot.settings.avatarPath,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        child: KeyedSubtree(
-          key: ValueKey(_selectedIndex),
-          child: destination.screen,
-        ),
+      child: KeyedSubtree(
+        key: ValueKey(_selectedIndex),
+        child: destination.screen,
       ),
     );
   }

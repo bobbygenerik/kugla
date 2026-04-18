@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../firebase_options.dart';
 import '../models/app_state.dart';
+import 'flutter_test_mode_io.dart'
+    if (dart.library.html) 'flutter_test_mode_web.dart';
 
 class RemoteSyncService {
   bool _initialized = false;
@@ -18,6 +20,13 @@ class RemoteSyncService {
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
+
+    // `flutter test` sets FLUTTER_TEST; Firebase plugins can hang without native
+    // mocks, so skip remote entirely in that harness.
+    if (runningInFlutterTest) {
+      _enabled = false;
+      return;
+    }
 
     const enabled = bool.fromEnvironment('FIREBASE_ENABLED', defaultValue: true);
     if (!enabled) {
