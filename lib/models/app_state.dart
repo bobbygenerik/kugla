@@ -286,15 +286,18 @@ class AppSnapshot {
     );
   }
 
-    bool get hasSessions => sessions.isNotEmpty;
-    int get totalSessions => sessions.length;
-    late final int totalRounds =
+  bool get hasSessions => sessions.isNotEmpty;
+  int get totalSessions => sessions.length;
+  late final int totalRounds =
       sessions.fold(0, (sum, session) => sum + session.rounds.length);
-    late final int totalScore =
+
+  late final int totalScore =
       sessions.fold(0, (sum, session) => sum + session.totalScore);
-    late final double averageRoundScore =
+
+  late final double averageRoundScore =
       totalRounds == 0 ? 0 : totalScore / totalRounds.toDouble();
-    late final double averageDistanceKm = () {
+
+  late final double averageDistanceKm = () {
     if (totalRounds == 0) return 0.0;
     final totalDistance = sessions.fold<double>(
       0,
@@ -303,14 +306,14 @@ class AppSnapshot {
         session.rounds.fold(0, (inner, round) => inner + round.distanceKm),
     );
     return totalDistance / totalRounds.toDouble();
-    }();
+  }();
 
-    late final int bestSessionScore = () {
+  late final int bestSessionScore = () {
     if (sessions.isEmpty) return 0;
     return sessions
-      .map((session) => session.totalScore)
-      .reduce((a, b) => a > b ? a : b);
-    }();
+        .map((session) => session.totalScore)
+        .reduce((a, b) => a > b ? a : b);
+  }();
 
   int bestSessionScoreForMode(GameMode mode) {
     final modeSessions = sessions.where((s) => s.gameMode == mode).toList();
@@ -328,16 +331,17 @@ class AppSnapshot {
         .reduce((a, b) => a < b ? a : b);
   }();
 
-  late final int exploredCountries = sessions
-      .expand((session) => session.rounds)
-      .map((round) => round.country)
-      .toSet()
-      .length;
+  late final int exploredCountries = () {
+    return sessions
+        .expand((session) => session.rounds)
+        .map((round) => round.country)
+        .toSet()
+        .length;
+  }();
 
   late final MissionSession? latestSession = () {
     if (sessions.isEmpty) return null;
-    return sessions
-        .reduce((a, b) => a.completedAt.isAfter(b.completedAt) ? a : b);
+    return sessions.reduce((a, b) => a.completedAt.isAfter(b.completedAt) ? a : b);
   }();
 
   late final List<MissionSession> recentSessions = () {
@@ -373,6 +377,7 @@ class AppSnapshot {
     }
     return ids;
   }
+
 
   late final List<MissionSession> bestSessions = () {
     final copy = [...sessions];
