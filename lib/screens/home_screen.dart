@@ -209,7 +209,7 @@ class _HeroMissionPanelState extends State<_HeroMissionPanel>
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 4200),
     )..repeat();
   }
 
@@ -779,83 +779,77 @@ class _LandmarkPulsePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2 + 3);
+    final dim = min(size.width, size.height);
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final center = Offset(cx, cy);
+    // Same geometry as [_AtlasBadgePainter]: circular badge in the square tile.
+    final r = dim * 0.44;
     const tone = KuglaColors.landmark;
-    // Several quick left–right rocks that damp out before the loop repeats.
-    final wobble = sin(progress * 2 * pi * 5.5) * 0.2 * (1 - progress);
+    final wobble = sin(progress * 2 * pi * 4.2) * 0.16 * (1 - progress);
     final glow = 0.28 + 0.08 * cos(progress * 2 * pi);
 
-    // Pivot at ground: reads like a heavy monument settling, not a single pole.
-    final yGround = center.dy + 12.0;
-    final pivot = Offset(center.dx, yGround);
+    // Shell matches Atlas (filled disc + rim).
+    canvas.drawCircle(center, r, Paint()..color = tone.withValues(alpha: 0.16));
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()
+        ..color = tone.withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = max(0.9, dim * 0.018),
+    );
+
+    // Monument design size in abstract units (width 26 × height 25); scale so
+    // the full bbox fits inside the disc with margin (like continents in Atlas).
+    const designW = 26.0;
+    const designH = 25.0;
+    final u = 2 * r * 0.86 / max(designW, designH);
+    final sw = max(0.75, u * 0.12);
+
+    canvas.save();
+    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: r)));
 
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(center.dx, center.dy + 15),
-        width: 28,
-        height: 7,
+        center: Offset(cx, cy + r * 0.38),
+        width: r * 1.05,
+        height: r * 0.2,
       ),
       Paint()..color = tone.withValues(alpha: 0.12 + glow * 0.2),
     );
 
-    canvas.save();
-    canvas.translate(pivot.dx, pivot.dy);
+    // Local coords: origin = bbox center; pivot at arch foot (ground) for wobble.
+    canvas.translate(cx, cy);
+    canvas.translate(0, 9.5 * u);
     canvas.rotate(wobble);
-    canvas.translate(-pivot.dx, -pivot.dy);
+    canvas.translate(0, -9.5 * u);
 
     final fill = Paint()..color = tone.withValues(alpha: 0.42 + glow * 0.2);
     final edge = Paint()
       ..color = const Color(0xFF4A3028).withValues(alpha: 0.55)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.9;
+      ..strokeWidth = sw;
 
-    // Classical gateway: stylobate, two piers, open archway, lintel, pediment.
-    // Symmetric architecture — avoids a single vertical “column + cap” read.
-    const lo = -13.0;
-    const li = -5.0;
-    const ri = 5.0;
-    const ro = 13.0;
-
-    void strokeRect(Rect r) {
-      canvas.drawRect(r, fill);
-      canvas.drawRect(r, edge);
+    void strokeRectLocal(Rect rect) {
+      canvas.drawRect(rect, fill);
+      canvas.drawRect(rect, edge);
     }
 
-    // Stylobate
-    strokeRect(Rect.fromLTRB(
-      center.dx + lo,
-      yGround,
-      center.dx + ro,
-      yGround + 3,
-    ));
+    final lo = -13 * u;
+    final li = -5 * u;
+    final ri = 5 * u;
+    final ro = 13 * u;
 
-    // Left and right piers (negative space = passage in the middle).
-    strokeRect(Rect.fromLTRB(
-      center.dx + lo,
-      yGround - 11,
-      center.dx + li,
-      yGround,
-    ));
-    strokeRect(Rect.fromLTRB(
-      center.dx + ri,
-      yGround - 11,
-      center.dx + ro,
-      yGround,
-    ));
+    strokeRectLocal(Rect.fromLTRB(lo, 9.5 * u, ro, 12.5 * u));
+    strokeRectLocal(Rect.fromLTRB(lo, -1.5 * u, li, 9.5 * u));
+    strokeRectLocal(Rect.fromLTRB(ri, -1.5 * u, ro, 9.5 * u));
+    strokeRectLocal(Rect.fromLTRB(lo, -4.5 * u, ro, -1.5 * u));
 
-    // Lintel spanning both piers
-    strokeRect(Rect.fromLTRB(
-      center.dx + lo,
-      yGround - 14,
-      center.dx + ro,
-      yGround - 11,
-    ));
-
-    // Triangular pediment (temple / triumphal-arch cue; all straight edges).
     final pediment = Path()
-      ..moveTo(center.dx + lo, yGround - 14)
-      ..lineTo(center.dx + ro, yGround - 14)
-      ..lineTo(center.dx, yGround - 22)
+      ..moveTo(lo, -4.5 * u)
+      ..lineTo(ro, -4.5 * u)
+      ..lineTo(0, -12.5 * u)
       ..close();
     canvas.drawPath(pediment, fill);
     canvas.drawPath(pediment, edge);

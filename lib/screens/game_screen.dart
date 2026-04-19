@@ -20,6 +20,11 @@ const _kMapWorldOverview = map_view.CameraPosition(
   zoom: 1.25,
 );
 
+/// Tighter inner arc for [_GuessMapCornerMaskPainter]. Lower covers more of the
+/// rectangular map in the corners (try ~0.42); raise if panel color visibly
+/// eats into the map along the curve (try ~0.55).
+const double _kGuessMapCornerMaskInnerFactor = 0.42;
+
 class GameScreen extends StatefulWidget {
   final AppSettings settings;
   final GameMode gameMode;
@@ -722,18 +727,26 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ],
                       ),
-                      child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(_mapExpanded ? 22 : 20),
-                        child: Stack(
-                                children: [
+                      // Do not clip the [GoogleMap] PlatformView (see comment on
+                      // [RepaintBoundary] below). Rounded appearance uses a paint
+                      // overlay that covers only the four corner triangles.
+                      child: Stack(
+                        // Clip to layout box so the PlatformView cannot draw a few
+                        // px past the card (high-contrast Street View makes that obvious).
+                        // Still avoid ClipRRect on [GoogleMap] itself (Android compositing).
+                        clipBehavior: Clip.hardEdge,
+                        children: [
                                   // Single GoogleMap always mounted — avoids the
                                   // "two GoogleMaps simultaneously" Android crash
                                   // that occurred when swapping between a mini map
                                   // and an expanded map widget.
                                   Positioned.fill(
                                     child: _nativeMapAvailable
-                                        ? map_view.GoogleMap(
+                                        ? RepaintBoundary(
+                                            child: map_view.GoogleMap(
+                                            key: ValueKey(
+                                              'guess_map_${_mapExpanded}_${expandedMapW.toInt()}_${mapHeight.toInt()}',
+                                            ),
                                             mapType: map_view.MapType.normal,
                                             initialCameraPosition:
                                                 _kMapWorldOverview,
@@ -773,6 +786,7 @@ class _GameScreenState extends State<GameScreen> {
                                             zoomGesturesEnabled: _mapExpanded,
                                             rotateGesturesEnabled: _mapExpanded,
                                             tiltGesturesEnabled: false,
+                                          ),
                                           )
                                         : ColoredBox(
                                             color: KuglaColors.midnight,
@@ -793,6 +807,19 @@ class _GameScreenState extends State<GameScreen> {
                                             ),
                                           ),
                                   ),
+                                  if (_nativeMapAvailable)
+                                    Positioned.fill(
+                                      child: IgnorePointer(
+                                        child: CustomPaint(
+                                          painter: _GuessMapCornerMaskPainter(
+                                            radius:
+                                                _mapExpanded ? 22.0 : 20.0,
+                                            fill: KuglaColors.panel
+                                                .withValues(alpha: 0.94),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   // Collapsed overlay
                                   if (!_mapExpanded)
                                     Positioned.fill(
@@ -924,7 +951,6 @@ class _GameScreenState extends State<GameScreen> {
                                     ),
                                 ],
                               ),
-                      ),
                     ),
                   ),
                 ],
@@ -1650,4 +1676,48 @@ class _ResultMapPainter extends CustomPainter {
       old.guessLat != guessLat ||
       old.guessLng != guessLng ||
       old.arcProgress != arcProgress;
+}
+
+/// Paints the four corner regions outside a rounded rect, matching the card
+/// fill. Avoids [ClipRRect] on [GoogleMap], which breaks Android PlatformView
+/// compositing, while restoring a rounded look.
+class _GuessMapCornerMaskPainter extends CustomPainter {
+  final double radius;
+  final Color fill;
+
+  _GuessMapCornerMaskPainter({
+    required this.radius,
+    required this.fill,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rect = Offset.zero & size;
+    final maxR = min(size.width, size.height) / 2;
+    // Card uses [radius] for the decoration. The map draws a full rectangle;
+    // we must cover the *outer* corner lunes. Using the same radius as the
+    // card for the inner RRect leaves thin slivers of map at the corners — use a
+    // noticeably tighter inner arc so the mask extends further into each corner.
+    final rVisual = min(radius, maxR);
+    final innerR =
+        (rVisual * _kGuessMapCornerMaskInnerFactor).clamp(3.0, rVisual);
+    final rrect = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(innerR),
+    );
+    final outer = Path()..addRect(rect);
+    final inner = Path()..addRRect(rrect);
+    final corners = Path.combine(PathOperation.difference, outer, inner);
+    canvas.drawPath(
+      corners,
+      Paint()
+        ..color = fill
+        ..isAntiAlias = true,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GuessMapCornerMaskPainter oldDelegate) =>
+      oldDelegate.radius != radius || oldDelegate.fill != fill;
 }
