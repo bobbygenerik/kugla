@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/layout_breakpoints.dart';
 import '../app/mode_style.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
@@ -18,8 +19,9 @@ class SocialScreen extends StatelessWidget {
     final recentSessions = snapshot.recentSessions.take(10).toList();
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 960;
-        final contentMaxWidth = wide ? 980.0 : double.infinity;
+        final wide = context.wideColumnsFor(constraints.maxWidth);
+        final contentMaxWidth =
+            wide ? kContentMaxWidthTight : double.infinity;
         final constrainedWidth = wide
             ? (constraints.maxWidth < contentMaxWidth
                 ? constraints.maxWidth
@@ -95,7 +97,8 @@ class SocialScreen extends StatelessWidget {
           children: [
             Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 980),
+                constraints:
+                    const BoxConstraints(maxWidth: kContentMaxWidthTight),
                 child: panel,
               ),
             ),

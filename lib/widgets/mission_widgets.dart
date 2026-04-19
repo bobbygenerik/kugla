@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../app/layout_breakpoints.dart';
 import '../app/theme.dart';
 
 /// Bottom scroll inset when using [KuglaShell]’s floating pill + [Scaffold.extendBody].
@@ -15,8 +16,7 @@ EdgeInsets adaptiveScreenPadding(BuildContext context,
     double top = 18,
     bool includeFloatingNavReserve = true}) {
   final mq = MediaQuery.of(context);
-  final w = mq.size.width;
-  final h = w > 720 ? ((w - 680) / 2).clamp(20.0, 240.0) : 20.0;
+  final h = context.centeredContentHorizontalPadding;
   // With extendBody, use viewPadding for system gesture / home indicator; on some
   // Android nav modes padding.bottom can be the larger signal — take the max.
   final systemBottom =

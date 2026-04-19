@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#30B9D7</color>
-    <color name="splash_top">#48D4E8</color>
-    <color name="splash_bottom">#1682A2</color>
+    <!-- Adaptive icon tile: midnight (KuglaColors.midnight) — aligns with shell; pin/globe read clearly. -->
+    <color name="ic_launcher_background">#0C1E28</color>
+    <color name="splash_top">#0C1E28</color>
+    <color name="splash_bottom">#071318</color>
 </resources>

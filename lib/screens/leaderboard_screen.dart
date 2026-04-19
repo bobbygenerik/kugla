@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/layout_breakpoints.dart';
 import '../app/mode_style.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
@@ -230,9 +231,12 @@ class _FamilyTab extends StatelessWidget {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 960;
+            final wide =
+                context.wideColumnsFor(constraints.maxWidth);
             final constrainedWidth =
-                constraints.maxWidth < 980 ? constraints.maxWidth : 980.0;
+                constraints.maxWidth < kContentMaxWidthTight
+                    ? constraints.maxWidth
+                    : kContentMaxWidthTight;
             final cardWidth = wide ? (constrainedWidth - 24) / 2 : null;
             final cards = List<Widget>.generate(entries.length, (index) {
               final entry = entries[index];
@@ -372,9 +376,11 @@ class _PersonalBestTab extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 960;
+        final wide = context.wideColumnsFor(constraints.maxWidth);
         final constrainedWidth =
-            constraints.maxWidth < 980 ? constraints.maxWidth : 980.0;
+            constraints.maxWidth < kContentMaxWidthTight
+                ? constraints.maxWidth
+                : kContentMaxWidthTight;
         final cardWidth = wide ? (constrainedWidth - 24) / 2 : null;
         final cards = List<Widget>.generate(best.length, (index) {
           final session = best[index];

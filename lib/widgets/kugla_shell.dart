@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../app/layout_breakpoints.dart';
 import '../app/theme.dart';
 
 class KuglaShell extends StatelessWidget {
@@ -27,7 +28,7 @@ class KuglaShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final useRail = MediaQuery.sizeOf(context).width >= 768;
+    final useRail = context.useNavigationRailLayout;
     final topBar = _KuglaTopBar(
       title: title,
       onOpenProfile: onOpenProfile,
@@ -38,19 +39,21 @@ class KuglaShell extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         const _NebulaBackdrop(),
-        SafeArea(
-          top: false,
-          child: useRail
-              ? Row(
-                  children: [
-                    _KuglaNavRail(
-                      currentIndex: currentIndex,
-                      onTap: onNavTap,
-                    ),
-                    Expanded(child: child),
-                  ],
-                )
-              : child,
+        Positioned.fill(
+          child: SafeArea(
+            top: false,
+            child: useRail
+                ? Row(
+                    children: [
+                      _KuglaNavRail(
+                        currentIndex: currentIndex,
+                        onTap: onNavTap,
+                      ),
+                      Expanded(child: child),
+                    ],
+                  )
+                : child,
+          ),
         ),
       ],
     );
@@ -84,8 +87,7 @@ class _KuglaTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final hPad = w > 720 ? ((w - 680) / 2).clamp(20.0, 240.0) : 20.0;
+    final hPad = context.centeredContentHorizontalPadding;
     return AppBar(
       toolbarHeight: 82,
       titleSpacing: hPad,
@@ -179,52 +181,63 @@ class _KuglaBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          decoration: BoxDecoration(
-            color: KuglaColors.midnight.withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: KuglaColors.stroke),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.24),
-                blurRadius: 22,
-                offset: const Offset(0, 14),
+    // Do not use a bare [Center] here: [RenderPositionedBox] expands to the
+    // scaffold's max height, so the bottom slot becomes full-screen, the pill
+    // sits in the vertical middle, and the body can stop receiving layout/hits
+    // correctly. [Align.heightFactor] shrink-wraps height to the nav bar only.
+    return SafeArea(
+      top: false,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 1.0,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Container(
+              decoration: BoxDecoration(
+                color: KuglaColors.midnight.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: KuglaColors.stroke),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.24),
+                    blurRadius: 22,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: NavigationBar(
-            backgroundColor: Colors.transparent,
-            height: 74,
-            selectedIndex: currentIndex,
-            onDestinationSelected: onTap,
-            indicatorColor: KuglaColors.pulse.withValues(alpha: 0.20),
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.explore_outlined),
-                selectedIcon: Icon(Icons.explore_rounded),
-                label: 'Explore',
+              child: NavigationBar(
+                backgroundColor: Colors.transparent,
+                height: 74,
+                selectedIndex: currentIndex,
+                onDestinationSelected: onTap,
+                indicatorColor: KuglaColors.pulse.withValues(alpha: 0.20),
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.explore_outlined),
+                    selectedIcon: Icon(Icons.explore_rounded),
+                    label: 'Explore',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.emoji_events_outlined),
+                    selectedIcon: Icon(Icons.emoji_events_rounded),
+                    label: 'Records',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.history_rounded),
+                    selectedIcon: Icon(Icons.history_edu_rounded),
+                    label: 'History',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.auto_awesome_mosaic_outlined),
+                    selectedIcon: Icon(Icons.auto_awesome_mosaic_rounded),
+                    label: 'Vault',
+                  ),
+                ],
               ),
-              NavigationDestination(
-                icon: Icon(Icons.emoji_events_outlined),
-                selectedIcon: Icon(Icons.emoji_events_rounded),
-                label: 'Records',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.history_rounded),
-                selectedIcon: Icon(Icons.history_edu_rounded),
-                label: 'History',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.auto_awesome_mosaic_outlined),
-                selectedIcon: Icon(Icons.auto_awesome_mosaic_rounded),
-                label: 'Vault',
-              ),
-            ],
+            ),
           ),
         ),
       ),

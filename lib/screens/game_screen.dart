@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as map_view;
 
+import '../app/layout_breakpoints.dart';
 import '../app/mode_style.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
@@ -414,14 +415,28 @@ class _GameScreenState extends State<GameScreen> {
         _results.fold<int>(0, (sum, result) => sum + result.score);
     final canOpenMap =
         _streetViewReady && !_streetViewFailed && _nativeMapAvailable;
-    final mapHeight = min(media.size.height * 0.56, 430.0);
     final missingMapsMessage = _nativeMapMessage ??
         'Google Maps is not configured for this iOS build yet. Add a valid `GMS_API_KEY` in `ios/Flutter/Secrets.xcconfig` to enable missions.';
-    // Responsive max width for panels/overlays (90% of width, max 440)
-    final double maxPanelWidth = min(media.size.width * 0.9, 440.0);
-    final double maxErrorWidth = min(media.size.width * 0.92, 440.0);
+    final isTablet = context.isTabletLikeLayout;
 
-    return Scaffold(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final lw = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : media.size.width;
+        final lh = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : media.size.height;
+        final layoutSize = Size(lw, lh);
+        final mapHeight =
+            gameExpandedMapHeight(layoutSize, isTabletLike: isTablet);
+        final maxPanelWidth = gameHudMaxWidth(lw, isTabletLike: isTablet);
+        final maxErrorWidth = gameSheetMaxWidth(lw, isTabletLike: isTablet);
+        final mini = gameMiniMapDimensions(isTablet);
+        final expandedMapW = gameExpandedMapWidth(lw, isTabletLike: isTablet);
+        final edgePad = isTablet ? 16.0 : 12.0;
+
+        return Scaffold(
       backgroundColor: KuglaColors.deepSpace,
       body: Stack(
         fit: StackFit.expand,
@@ -581,7 +596,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              padding: EdgeInsets.fromLTRB(edgePad, edgePad, edgePad, edgePad),
               child: Stack(
                 children: [
                   Column(
@@ -692,8 +707,8 @@ class _GameScreenState extends State<GameScreen> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 280),
                       curve: Curves.easeOutCubic,
-                      width: _mapExpanded ? media.size.width - 32 : 168,
-                      height: _mapExpanded ? mapHeight : 128,
+                      width: _mapExpanded ? expandedMapW : mini.width,
+                      height: _mapExpanded ? mapHeight : mini.height,
                       decoration: BoxDecoration(
                         color: KuglaColors.panel.withValues(alpha: 0.94),
                         borderRadius:
@@ -1022,6 +1037,8 @@ class _GameScreenState extends State<GameScreen> {
         ],
       ),
     );
+      },
+    );
   }
 }
 
@@ -1107,7 +1124,9 @@ class _RoundResultOverlayState extends State<_RoundResultOverlay>
     }
 
     final media = MediaQuery.of(context);
-    final double maxDialogWidth = min(media.size.width * 0.95, 480.0);
+    final isTablet = context.isTabletLikeLayout;
+    final maxDialogWidth =
+        gameResultOverlayMaxWidth(media.size.width, isTabletLike: isTablet);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(

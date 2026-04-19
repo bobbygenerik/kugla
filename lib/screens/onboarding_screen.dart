@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../app/build_stamp.dart';
+import '../app/layout_breakpoints.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
 import '../widgets/kugla_gradient_title.dart';
@@ -163,8 +164,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final hPad = w > 720 ? ((w - 680) / 2).clamp(20.0, 240.0) : 20.0;
+    final hPad = context.centeredContentHorizontalPadding;
     final contentPadding = adaptiveScreenPadding(
       context,
       includeFloatingNavReserve: false,

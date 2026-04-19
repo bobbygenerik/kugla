@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Generate Kugla icon + splash assets matching the teal mockup."""
+"""Generate Kugla icon + splash assets.
+
+Launcher icons use the teal mockup sphere; splash uses midnight → deepSpace
+to match `KuglaColors` / Android `launch_background` (smooth handoff into the app).
+"""
 
 from __future__ import annotations
 import math
@@ -14,8 +18,12 @@ SPLASH   = ROOT / "assets" / "splash" / "splash.png"
 SPLASH_H = ROOT / "assets" / "splash" / "splash_hdpi.png"
 
 # ── Palette ───────────────────────────────────────────────────────────────────
-TEAL_LIGHT  = np.array([72,  212, 232], dtype=np.float32)  # #48D4E8
-TEAL_DARK   = np.array([22,  130, 162], dtype=np.float32)  # #1682A2
+TEAL_LIGHT  = np.array([72,  212, 232], dtype=np.float32)  # #48D4E8 — icon only
+TEAL_DARK   = np.array([22,  130, 162], dtype=np.float32)  # #1682A2 — icon only
+
+# App shell (see lib/app/theme.dart) — splash background only
+MIDNIGHT   = np.array([12,  30,  40], dtype=np.float32)   # #0C1E28
+DEEPSPACE  = np.array([7,   19,  24], dtype=np.float32)   # #071318
 BG_INNER    = np.array([90,  220, 240], dtype=np.float32)  # #5ADCF0 — centre highlight
 BG_OUTER    = np.array([18,  110, 145], dtype=np.float32)  # #126E91 — edge shadow
 
@@ -194,8 +202,12 @@ def draw_pin(canvas: Image.Image, tip_x, tip_y, pin_h):
 
 def make_icon(size: int = 1024) -> Image.Image:
     cx = cy = size / 2.0
-    bg_r    = size / 2.0
-    globe_r = size * 0.295
+    bg_r = size / 2.0
+    # Globe + pin must sit inside Android adaptive-icon safe zone (~66% of side,
+    # centered). Older values put the pin head near the top and it was masked off.
+    globe_r = size * 0.265
+    gcx = cx
+    gcy = cy + size * 0.068
 
     # 1. Smooth radial teal background
     icon = smooth_radial_gradient(size, cx, cy, bg_r, BG_INNER, BG_OUTER)
@@ -212,15 +224,13 @@ def make_icon(size: int = 1024) -> Image.Image:
                    outline=(255, 255, 255, alpha), width=max(1, int(bg_r * 0.012)))
     icon.alpha_composite(ring_layer)
 
-    # 3. Globe — offset slightly down to make room for pin above
-    gcx = cx
-    gcy = cy + size * 0.055
+    # 3. Globe
     draw_globe(icon, gcx, gcy, globe_r)
 
-    # 4. Pin — tip anchored on globe surface, upper portion
-    pin_h   = size * 0.30
-    pin_x   = gcx + globe_r * 0.16
-    pin_tip = gcy - globe_r * 0.55
+    # 4. Pin — slightly shorter; anchor nearer the equator so the head stays visible
+    pin_h = size * 0.245
+    pin_x = gcx + globe_r * 0.15
+    pin_tip = gcy - globe_r * 0.46
     draw_pin(icon, pin_x, pin_tip, pin_h)
 
     # 5. Circular mask
@@ -244,8 +254,8 @@ def make_ios_icon(size: int = 1024) -> Image.Image:
 # ── Splash screen ─────────────────────────────────────────────────────────────
 
 def make_splash(w: int = 1080, h: int = 1920) -> Image.Image:
-    c1 = tuple(TEAL_LIGHT.astype(int).tolist())
-    c2 = tuple(TEAL_DARK.astype(int).tolist())
+    c1 = tuple(MIDNIGHT.astype(int).tolist())
+    c2 = tuple(DEEPSPACE.astype(int).tolist())
     img = linear_gradient_image(w, h, c1, c2).convert("RGBA")
 
     # Logo (circular icon, no square background)

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../app/layout_breakpoints.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
 import '../widgets/kugla_map_backdrop.dart';
@@ -120,7 +121,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           const KuglaMapBackdrop(),
           LayoutBuilder(
             builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 980;
+          final wide = context.wideColumnsFor(constraints.maxWidth,
+              minWidth: kWideLayoutMinWidth);
           final profileHeader = GlassPanel(
             child: Row(
               children: [

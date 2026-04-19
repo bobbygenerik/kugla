@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Build adaptive foreground (RGBA) + iOS full-bleed (RGB) from the Kugla logo.
+"""Legacy: center-crop a photo to 1024² for launcher experiments.
 
-The master image is center-cropped to a square (cover / scale-to-fill) so every
-pixel of the 1024×1024 asset is artwork — no letterboxing. Launcher masks
-(circle, squircle, etc.) are still applied by the OS.
+**Shipped icons:** use `tools/build_app_icon.py` (single globe + opaque pin, no
+raster stack). Do not run this unless you intentionally replace assets from a
+flat master.
 
-Primary source: uploads/kuglafixed.jpg (official mark). Falls back to
-assets/icon/kugla_app_icon.png if the JPG is missing.
+Primary source: uploads/kuglafixed.jpg, or assets/icon/kugla_app_icon.png.
 
-Run from repo root:
-  python3 tools/generate_app_icons.py
+  python3 tools/generate_app_icons.py   # optional / legacy
   dart run flutter_launcher_icons
 """
 
@@ -18,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_JPG = ROOT / "uploads" / "kuglafixed.jpg"
@@ -27,10 +25,6 @@ FG_OUT = ROOT / "assets" / "icon" / "kugla_app_icon_foreground.png"
 IOS_OUT = ROOT / "assets" / "icon" / "kugla_app_icon_ios.png"
 
 CANVAS = 1024
-
-# Soft matte: max RGB channel delta from edge reference → alpha.
-T0, T1 = 10.0, 32.0
-
 
 def resolve_master() -> Path:
     if SOURCE_JPG.is_file():
@@ -62,17 +56,8 @@ def main() -> None:
     a = np.array(square, dtype=np.float32)
     h, w = a.shape[:2]
 
-    border = np.concatenate([a[0, :], a[-1, :], a[:, 0], a[:, -1]], axis=0)
-    ref = np.median(border, axis=0)
-    d = np.abs(a - ref).max(axis=2)
-
-    alpha = np.clip((d - T0) / (T1 - T0), 0.0, 1.0)
-    alpha_u8 = (alpha * 255.0).astype(np.uint8)
-    alpha_im = Image.fromarray(alpha_u8, mode="L")
-    alpha_im = alpha_im.filter(ImageFilter.GaussianBlur(radius=0.85))
-    alpha_blur = np.array(alpha_im, dtype=np.uint8)
-
-    rgba = np.dstack([a.astype(np.uint8), alpha_blur])
+    alpha_u8 = np.full((h, w), 255, dtype=np.uint8)
+    rgba = np.dstack([a.astype(np.uint8), alpha_u8])
     Image.fromarray(rgba, "RGBA").save(FG_OUT)
     print(f"Wrote {FG_OUT.relative_to(ROOT)}")
 

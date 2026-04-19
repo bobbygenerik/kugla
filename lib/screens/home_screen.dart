@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../app/layout_breakpoints.dart';
 import '../app/theme.dart';
 import '../models/app_state.dart';
 import '../models/mock_data.dart';
@@ -59,7 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 constraints: const BoxConstraints(maxWidth: 1080),
                 child: LayoutBuilder(
                   builder: (context, inner) {
-                    final wide = inner.maxWidth >= 980;
+                    final wide = context.wideColumnsFor(inner.maxWidth,
+                        minWidth: kWideLayoutMinWidth);
                     final telemetryTiles = [
                       TelemetryTile(
                         label: 'Missions',
@@ -200,20 +202,20 @@ class _HeroMissionPanel extends StatefulWidget {
 
 class _HeroMissionPanelState extends State<_HeroMissionPanel>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _globeController;
+  late final AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _globeController = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 48),
+      duration: const Duration(milliseconds: 2400),
     )..repeat();
   }
 
   @override
   void dispose() {
-    _globeController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -264,7 +266,7 @@ class _HeroMissionPanelState extends State<_HeroMissionPanel>
                 ),
               ),
             ),
-            // Rotating globe backdrop
+            // Daily Pulse ambient animation (radiating pin/beacon)
             Positioned(
               right: -40,
               top: 0,
@@ -272,10 +274,10 @@ class _HeroMissionPanelState extends State<_HeroMissionPanel>
               width: 260,
               child: IgnorePointer(
                 child: AnimatedBuilder(
-                  animation: _globeController,
+                  animation: _pulseController,
                   builder: (context, _) => CustomPaint(
-                    painter: _GlobePainter(
-                      viewLng: _globeController.value * 360 - 180,
+                    painter: _PulseBeaconPainter(
+                      progress: _pulseController.value,
                     ),
                   ),
                 ),
@@ -368,7 +370,7 @@ class _HeroMissionPanelState extends State<_HeroMissionPanel>
   }
 }
 
-class _MissionModeCard extends StatelessWidget {
+class _MissionModeCard extends StatefulWidget {
   final MissionMode mode;
   final VoidCallback onLaunch;
 
@@ -376,6 +378,29 @@ class _MissionModeCard extends StatelessWidget {
     required this.mode,
     required this.onLaunch,
   });
+
+  @override
+  State<_MissionModeCard> createState() => _MissionModeCardState();
+}
+
+class _MissionModeCardState extends State<_MissionModeCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ambientController;
+
+  @override
+  void initState() {
+    super.initState();
+    _ambientController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ambientController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -386,32 +411,59 @@ class _MissionModeCard extends StatelessWidget {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: mode.color.withValues(alpha: 0.14),
+            color: widget.mode.color.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Icon(mode.icon, color: mode.color),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Custom painters replace the stock icons for atlas / landmark so we
+              // don't get a second "mini globe" or map glyph in the center.
+              if (widget.mode.gameMode != GameMode.worldAtlas &&
+                  widget.mode.gameMode != GameMode.landmarkLock)
+                Icon(widget.mode.icon, color: widget.mode.color),
+              if (widget.mode.gameMode == GameMode.worldAtlas)
+                AnimatedBuilder(
+                  animation: _ambientController,
+                  builder: (context, _) => CustomPaint(
+                    painter: _AtlasBadgePainter(
+                      viewLng: _ambientController.value * 360 - 180,
+                    ),
+                  ),
+                ),
+              if (widget.mode.gameMode == GameMode.landmarkLock)
+                AnimatedBuilder(
+                  animation: _ambientController,
+                  builder: (context, _) => CustomPaint(
+                    painter: _LandmarkPulsePainter(
+                      progress: _ambientController.value,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         );
 
         final copy = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              mode.title,
+              widget.mode.title,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
             ),
             const SizedBox(height: 6),
             Text(
-              mode.subtitle,
+              widget.mode.subtitle,
               style: TextStyle(
-                color: mode.color,
+                color: widget.mode.color,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              mode.detail,
+              widget.mode.detail,
               style: const TextStyle(
                 color: KuglaColors.textMuted,
                 height: 1.45,
@@ -421,7 +473,7 @@ class _MissionModeCard extends StatelessWidget {
         );
 
         final launchButton = FilledButton.tonalIcon(
-          onPressed: onLaunch,
+          onPressed: widget.onLaunch,
           icon: const Icon(Icons.play_arrow_rounded),
           label: const Text('Play'),
           style: FilledButton.styleFrom(
@@ -445,7 +497,7 @@ class _MissionModeCard extends StatelessWidget {
                 bottom: 0,
                 width: 3,
                 child: ColoredBox(
-                  color: mode.color.withValues(alpha: 0.7),
+                  color: widget.mode.color.withValues(alpha: 0.7),
                 ),
               ),
               Padding(
@@ -489,119 +541,132 @@ class _MissionModeCard extends StatelessWidget {
 }
 
 // Simplified continent polygon data [lat, lng] for orthographic globe rendering.
+// Tuned for recognizability (not geodetic precision) at small card scale.
 const _continentPolygons = <List<List<double>>>[
   // North America
   [
-    [71.0, -156.0], [60.0, -140.0], [49.0, -124.0], [32.5, -117.0],
-    [15.0, -87.0], [8.0, -77.0], [9.0, -83.0], [15.0, -92.0],
-    [25.0, -80.0], [30.0, -81.0], [35.0, -76.0], [41.0, -70.0],
-    [47.0, -53.0], [50.0, -56.0], [60.0, -64.0], [65.0, -83.0],
-    [71.0, -156.0],
+    [72.0, -165.0], [67.0, -150.0], [60.0, -135.0], [53.0, -125.0],
+    [48.0, -123.0], [43.0, -124.0], [37.0, -121.0], [32.0, -117.0],
+    [25.0, -110.0], [21.0, -100.0], [17.0, -93.0], [14.0, -89.0],
+    [16.0, -84.0], [22.0, -82.0], [27.0, -80.0], [30.0, -81.0],
+    [36.0, -76.0], [42.0, -70.0], [47.0, -60.0], [52.0, -56.0],
+    [58.0, -64.0], [64.0, -78.0], [70.0, -100.0], [72.0, -130.0],
+    [72.0, -165.0],
   ],
   // South America
   [
-    [12.0, -72.0], [10.0, -62.0], [5.0, -52.0], [0.0, -50.0],
-    [-10.0, -37.0], [-22.0, -42.0], [-34.0, -53.0], [-55.0, -65.0],
-    [-45.0, -75.0], [-18.0, -70.0], [-5.0, -81.0], [10.0, -75.0],
-    [12.0, -72.0],
+    [12.0, -78.0], [10.0, -72.0], [8.0, -66.0], [6.0, -60.0],
+    [3.0, -54.0], [-2.0, -50.0], [-8.0, -47.0], [-14.0, -44.0],
+    [-22.0, -46.0], [-30.0, -52.0], [-38.0, -58.0], [-46.0, -65.0],
+    [-53.0, -69.0], [-56.0, -66.0], [-52.0, -61.0], [-44.0, -58.0],
+    [-34.0, -54.0], [-22.0, -60.0], [-12.0, -70.0], [-4.0, -76.0],
+    [4.0, -79.0], [10.0, -78.0], [12.0, -78.0],
   ],
   // Europe
   [
-    [71.0, 28.0], [65.0, 14.0], [58.0, 5.0], [51.0, 2.0],
-    [43.0, -9.0], [36.0, -6.0], [36.0, 2.0], [37.0, 15.0],
-    [40.0, 18.0], [46.0, 13.0], [48.0, 22.0], [54.0, 18.0],
-    [60.0, 25.0], [71.0, 28.0],
+    [71.0, 28.0], [66.0, 22.0], [61.0, 14.0], [57.0, 8.0],
+    [54.0, 2.0], [50.0, 0.0], [46.0, -4.0], [43.0, -8.0],
+    [40.0, -9.0], [37.0, -4.0], [37.0, 4.0], [40.0, 10.0],
+    [43.0, 14.0], [46.0, 18.0], [49.0, 20.0], [53.0, 18.0],
+    [58.0, 20.0], [63.0, 24.0], [68.0, 27.0], [71.0, 28.0],
   ],
   // Africa
   [
-    [37.0, -5.0], [37.0, 10.0], [30.0, 32.0], [22.0, 37.0],
-    [12.0, 44.0], [5.0, 40.0], [-5.0, 39.0], [-26.0, 33.0],
-    [-34.0, 27.0], [-34.0, 18.0], [-26.0, 15.0], [-8.0, 14.0],
-    [5.0, -5.0], [10.0, -15.0], [22.0, -17.0], [30.0, -13.0],
-    [37.0, -5.0],
+    [37.0, -17.0], [37.0, -8.0], [35.0, 0.0], [36.0, 8.0],
+    [37.0, 16.0], [34.0, 24.0], [30.0, 32.0], [23.0, 37.0],
+    [15.0, 43.0], [8.0, 44.0], [2.0, 40.0], [-6.0, 38.0],
+    [-15.0, 36.0], [-22.0, 34.0], [-29.0, 30.0], [-34.0, 24.0],
+    [-34.0, 17.0], [-30.0, 12.0], [-24.0, 13.0], [-16.0, 15.0],
+    [-8.0, 12.0], [-3.0, 8.0], [2.0, 5.0], [5.0, 0.0],
+    [9.0, -5.0], [12.0, -11.0], [18.0, -16.0], [26.0, -17.0],
+    [33.0, -15.0], [37.0, -17.0],
   ],
   // Asia
   [
-    [71.0, 28.0], [72.0, 68.0], [70.0, 100.0], [65.0, 142.0],
-    [50.0, 140.0], [35.0, 120.0], [22.0, 114.0], [10.0, 105.0],
-    [1.0, 104.0], [10.0, 99.0], [20.0, 73.0], [8.0, 77.0],
-    [22.0, 68.0], [25.0, 51.0], [15.0, 43.0], [12.0, 44.0],
-    [22.0, 37.0], [30.0, 32.0], [37.0, 36.0], [40.0, 45.0],
-    [57.0, 60.0], [65.0, 68.0], [71.0, 28.0],
+    [71.0, 28.0], [72.0, 45.0], [72.0, 62.0], [70.0, 80.0],
+    [66.0, 98.0], [62.0, 118.0], [58.0, 132.0], [52.0, 142.0],
+    [45.0, 145.0], [38.0, 140.0], [32.0, 132.0], [28.0, 122.0],
+    [24.0, 116.0], [20.0, 111.0], [16.0, 106.0], [10.0, 102.0],
+    [5.0, 98.0], [2.0, 102.0], [7.0, 108.0], [13.0, 102.0],
+    [18.0, 95.0], [22.0, 86.0], [25.0, 78.0], [28.0, 70.0],
+    [24.0, 64.0], [18.0, 60.0], [16.0, 52.0], [20.0, 45.0],
+    [24.0, 40.0], [30.0, 34.0], [37.0, 36.0], [44.0, 46.0],
+    [52.0, 56.0], [60.0, 66.0], [67.0, 74.0], [71.0, 28.0],
   ],
   // Australia
   [
-    [-14.0, 127.0], [-12.0, 137.0], [-18.0, 145.0], [-28.0, 154.0],
-    [-37.0, 150.0], [-39.0, 146.0], [-38.0, 141.0], [-32.0, 134.0],
-    [-32.0, 115.0], [-22.0, 114.0], [-17.0, 122.0], [-14.0, 127.0],
+    [-11.0, 113.0], [-15.0, 122.0], [-16.0, 130.0], [-12.0, 138.0],
+    [-16.0, 146.0], [-23.0, 153.0], [-30.0, 153.0], [-36.0, 149.0],
+    [-39.0, 145.0], [-38.0, 139.0], [-35.0, 132.0], [-31.0, 125.0],
+    [-31.0, 118.0], [-27.0, 114.0], [-20.0, 112.0], [-14.0, 112.0],
+    [-11.0, 113.0],
   ],
 ];
 
-class _GlobePainter extends CustomPainter {
+Offset? _projectOrtho(
+  double lat,
+  double lng,
+  Size size, {
+  required double viewLng,
+  double viewLatRad = 0.3490658503988659,
+  double radiusScale = 0.46,
+}) {
+  final latR = lat * pi / 180;
+  final lngR = lng * pi / 180;
+  final viewLngR = viewLng * pi / 180;
+
+  final x = cos(latR) * sin(lngR - viewLngR);
+  final y = cos(viewLatRad) * sin(latR) -
+      sin(viewLatRad) * cos(latR) * cos(lngR - viewLngR);
+  final z = sin(viewLatRad) * sin(latR) +
+      cos(viewLatRad) * cos(latR) * cos(lngR - viewLngR);
+  if (z < 0) return null;
+  final r = min(size.width, size.height) * radiusScale;
+  return Offset(size.width / 2 + x * r, size.height / 2 - y * r);
+}
+
+class _AtlasBadgePainter extends CustomPainter {
   final double viewLng;
-  static const double _viewLat = 20.0;
-
-  const _GlobePainter({required this.viewLng});
-
-  Offset? _project(double lat, double lng, Size size) {
-    final latR = lat * pi / 180;
-    final lngR = lng * pi / 180;
-    final viewLatR = _viewLat * pi / 180;
-    final viewLngR = viewLng * pi / 180;
-
-    final x = cos(latR) * sin(lngR - viewLngR);
-    final y = cos(viewLatR) * sin(latR) -
-        sin(viewLatR) * cos(latR) * cos(lngR - viewLngR);
-    final z = sin(viewLatR) * sin(latR) +
-        cos(viewLatR) * cos(latR) * cos(lngR - viewLngR);
-
-    if (z < 0) return null;
-    final r = min(size.width, size.height) * 0.46;
-    return Offset(size.width / 2 + x * r, size.height / 2 - y * r);
-  }
+  const _AtlasBadgePainter({required this.viewLng});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final r = min(size.width, size.height) * 0.46;
+    final r = min(size.width, size.height) * 0.44;
     final center = Offset(size.width / 2, size.height / 2);
 
     canvas.drawCircle(
       center, r,
-      Paint()..color = KuglaColors.pulse.withValues(alpha: 0.06),
+      Paint()..color = KuglaColors.atlas.withValues(alpha: 0.16),
     );
     canvas.drawCircle(
       center, r,
       Paint()
-        ..color = KuglaColors.cyan.withValues(alpha: 0.18)
+        ..color = KuglaColors.atlas.withValues(alpha: 0.45)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
+        ..strokeWidth = 0.9,
     );
 
     final gridPaint = Paint()
-      ..color = KuglaColors.cyan.withValues(alpha: 0.07)
-      ..strokeWidth = 0.5
+      ..color = KuglaColors.atlas.withValues(alpha: 0.18)
+      ..strokeWidth = 0.55
       ..style = PaintingStyle.stroke;
-    for (var latDeg = -60; latDeg <= 60; latDeg += 30) {
+    for (var lngDeg = -120; lngDeg <= 120; lngDeg += 60) {
       final pts = <Offset>[];
-      for (var lngDeg = -180; lngDeg <= 180; lngDeg += 4) {
-        final p = _project(latDeg.toDouble(), lngDeg.toDouble(), size);
+      for (var latDeg = -80; latDeg <= 80; latDeg += 8) {
+        final p = _projectOrtho(
+          latDeg.toDouble(),
+          lngDeg.toDouble(),
+          size,
+          viewLng: viewLng,
+          radiusScale: 0.44,
+        );
         if (p != null) pts.add(p);
       }
       if (pts.length > 1) {
         final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (final p in pts.skip(1)) { path.lineTo(p.dx, p.dy); }
-        canvas.drawPath(path, gridPaint);
-      }
-    }
-    for (var lngDeg = -150; lngDeg <= 180; lngDeg += 30) {
-      final pts = <Offset>[];
-      for (var latDeg = -90; latDeg <= 90; latDeg += 4) {
-        final p = _project(latDeg.toDouble(), lngDeg.toDouble(), size);
-        if (p != null) pts.add(p);
-      }
-      if (pts.length > 1) {
-        final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (final p in pts.skip(1)) { path.lineTo(p.dx, p.dy); }
+        for (final p in pts.skip(1)) {
+          path.lineTo(p.dx, p.dy);
+        }
         canvas.drawPath(path, gridPaint);
       }
     }
@@ -615,8 +680,17 @@ class _GlobePainter extends CustomPainter {
       Offset? first;
       Offset? prev;
       for (final pt in polygon) {
-        final projected = _project(pt[0], pt[1], size);
-        if (projected == null) { prev = null; continue; }
+        final projected = _projectOrtho(
+          pt[0],
+          pt[1],
+          size,
+          viewLng: viewLng,
+          radiusScale: 0.44,
+        );
+        if (projected == null) {
+          prev = null;
+          continue;
+        }
         if (prev != null) {
           canvas.drawLine(prev, projected, landPaint);
         } else {
@@ -631,5 +705,165 @@ class _GlobePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_GlobePainter old) => old.viewLng != viewLng;
+  bool shouldRepaint(_AtlasBadgePainter old) => old.viewLng != viewLng;
+}
+
+class _PulseBeaconPainter extends CustomPainter {
+  final double progress;
+  const _PulseBeaconPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final epicenter = Offset(size.width * 0.58, size.height * 0.46);
+    final base = min(size.width, size.height) * 0.12;
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+
+    // Outer waves — radiate from pin tip (epicenter).
+    for (var i = 0; i < 4; i++) {
+      final t = (progress + i / 4) % 1.0;
+      final radius = base + (t * size.width * 0.34);
+      ringPaint.color = KuglaColors.pulse.withValues(alpha: (1 - t) * 0.25);
+      canvas.drawCircle(epicenter, radius, ringPaint);
+    }
+    // Inner burst so the origin at the pin reads clearly (same epicenter).
+    for (var i = 0; i < 3; i++) {
+      final t = (progress + i / 3 + 0.12) % 1.0;
+      final radius = base * 0.12 + (t * size.width * 0.2);
+      ringPaint
+        ..strokeWidth = 1.25
+        ..color = KuglaColors.pulse.withValues(alpha: (1 - t) * 0.42);
+      canvas.drawCircle(epicenter, radius, ringPaint);
+    }
+
+    final pinPath = Path()
+      ..moveTo(epicenter.dx, epicenter.dy - base * 2.7)
+      ..cubicTo(
+        epicenter.dx + base * 0.95,
+        epicenter.dy - base * 2.7,
+        epicenter.dx + base * 1.08,
+        epicenter.dy - base * 1.65,
+        epicenter.dx,
+        epicenter.dy,
+      )
+      ..cubicTo(
+        epicenter.dx - base * 1.08,
+        epicenter.dy - base * 1.65,
+        epicenter.dx - base * 0.95,
+        epicenter.dy - base * 2.7,
+        epicenter.dx,
+        epicenter.dy - base * 2.7,
+      )
+      ..close();
+
+    canvas.drawPath(
+      pinPath,
+      Paint()..color = KuglaColors.pulse.withValues(alpha: 0.46),
+    );
+    canvas.drawCircle(
+      Offset(epicenter.dx, epicenter.dy - base * 1.95),
+      base * 0.42,
+      Paint()..color = KuglaColors.cyan.withValues(alpha: 0.5),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_PulseBeaconPainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+class _LandmarkPulsePainter extends CustomPainter {
+  final double progress;
+  const _LandmarkPulsePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2 + 3);
+    const tone = KuglaColors.landmark;
+    // Several quick left–right rocks that damp out before the loop repeats.
+    final wobble = sin(progress * 2 * pi * 5.5) * 0.2 * (1 - progress);
+    final glow = 0.28 + 0.08 * cos(progress * 2 * pi);
+
+    // Pivot at ground: reads like a heavy monument settling, not a single pole.
+    final yGround = center.dy + 12.0;
+    final pivot = Offset(center.dx, yGround);
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(center.dx, center.dy + 15),
+        width: 28,
+        height: 7,
+      ),
+      Paint()..color = tone.withValues(alpha: 0.12 + glow * 0.2),
+    );
+
+    canvas.save();
+    canvas.translate(pivot.dx, pivot.dy);
+    canvas.rotate(wobble);
+    canvas.translate(-pivot.dx, -pivot.dy);
+
+    final fill = Paint()..color = tone.withValues(alpha: 0.42 + glow * 0.2);
+    final edge = Paint()
+      ..color = const Color(0xFF4A3028).withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.9;
+
+    // Classical gateway: stylobate, two piers, open archway, lintel, pediment.
+    // Symmetric architecture — avoids a single vertical “column + cap” read.
+    const lo = -13.0;
+    const li = -5.0;
+    const ri = 5.0;
+    const ro = 13.0;
+
+    void strokeRect(Rect r) {
+      canvas.drawRect(r, fill);
+      canvas.drawRect(r, edge);
+    }
+
+    // Stylobate
+    strokeRect(Rect.fromLTRB(
+      center.dx + lo,
+      yGround,
+      center.dx + ro,
+      yGround + 3,
+    ));
+
+    // Left and right piers (negative space = passage in the middle).
+    strokeRect(Rect.fromLTRB(
+      center.dx + lo,
+      yGround - 11,
+      center.dx + li,
+      yGround,
+    ));
+    strokeRect(Rect.fromLTRB(
+      center.dx + ri,
+      yGround - 11,
+      center.dx + ro,
+      yGround,
+    ));
+
+    // Lintel spanning both piers
+    strokeRect(Rect.fromLTRB(
+      center.dx + lo,
+      yGround - 14,
+      center.dx + ro,
+      yGround - 11,
+    ));
+
+    // Triangular pediment (temple / triumphal-arch cue; all straight edges).
+    final pediment = Path()
+      ..moveTo(center.dx + lo, yGround - 14)
+      ..lineTo(center.dx + ro, yGround - 14)
+      ..lineTo(center.dx, yGround - 22)
+      ..close();
+    canvas.drawPath(pediment, fill);
+    canvas.drawPath(pediment, edge);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_LandmarkPulsePainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }

@@ -9,6 +9,7 @@ import '../screens/leaderboard_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/social_screen.dart';
+import '../screens/startup_splash_screen.dart';
 import '../screens/vault_screen.dart';
 import '../widgets/kugla_shell.dart';
 import 'local_app_store.dart';
@@ -24,7 +25,38 @@ class KuglaApp extends StatelessWidget {
       title: 'Kugla',
       debugShowCheckedModeBanner: false,
       theme: buildKuglaTheme(),
-      home: const AppShell(),
+      home: const _SplashToAppShell(),
+    );
+  }
+}
+
+class _SplashToAppShell extends StatefulWidget {
+  const _SplashToAppShell();
+
+  @override
+  State<_SplashToAppShell> createState() => _SplashToAppShellState();
+}
+
+class _SplashToAppShellState extends State<_SplashToAppShell> {
+  bool _showApp = false;
+
+  void _onSplashFinished() {
+    if (!mounted) return;
+    setState(() => _showApp = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 380),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: _showApp
+          ? const AppShell(key: ValueKey('app_shell'))
+          : StartupSplashScreen(
+              key: const ValueKey('splash_video'),
+              onVideoComplete: _onSplashFinished,
+            ),
     );
   }
 }
@@ -140,7 +172,18 @@ class _AppShellState extends State<AppShell> {
     final snapshot = _snapshot;
     if (snapshot == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [KuglaColors.midnight, KuglaColors.deepSpace],
+            ),
+          ),
+          child: Center(
+            child: CircularProgressIndicator(color: KuglaColors.cyan),
+          ),
+        ),
       );
     }
 
