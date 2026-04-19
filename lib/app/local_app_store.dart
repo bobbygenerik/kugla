@@ -37,4 +37,16 @@ class LocalAppStore {
     await prefs.setString(_sessionsKey, encodeSessions(sessions));
     return snapshot.copyWith(sessions: sessions);
   }
+
+  static const _onboardingKey = 'has_seen_onboarding_v1';
+
+  Future<bool> hasSeenOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_onboardingKey) ?? false;
+  }
+
+  Future<void> markOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_onboardingKey, true);
+  }
 }

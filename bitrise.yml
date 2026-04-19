@@ -1,0 +1,122 @@
+format_version: '26'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+project_type: flutter
+
+workflows:
+  deploy:
+    description: |
+      Builds and deploys app using [Deploy to bitrise.io Step](https://docs.bitrise.io/en/bitrise-ci/getting-started/quick-start-guides/getting-started-with-flutter-projects.html#deploying-a-flutter-app).
+
+      If you build for iOS, make sure to set up code signing secrets on Bitrise for a successful build.
+
+      Next steps:
+      - Check out [Getting started with Flutter apps](https://docs.bitrise.io/en/bitrise-ci/getting-started/quick-start-guides/getting-started-with-flutter-projects.html) for signing and deployment options.
+      - Check out the Code signing guide for [iOS](https://docs.bitrise.io/en/bitrise-ci/code-signing/ios-code-signing.html) and [Android](https://docs.bitrise.io/en/bitrise-ci/code-signing/android-code-signing.html).
+    steps:
+    - git-clone@8: {}
+    - certificate-and-profile-installer@1: {}
+    - flutter-installer@1:
+        inputs:
+        - version: 3.41.6
+    - flutter-analyze@0:
+        inputs:
+        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+    - script@1:
+        title: Refresh cached JUnit helper
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+            PUB_CACHE_DIR="${HOME}/.pub-cache"
+            rm -f "${PUB_CACHE_DIR}/bin/tojunit"
+            rm -f "${PUB_CACHE_DIR}"/global_packages/junitreport/bin/*.snapshot
+            dart pub global activate junitreport
+    - flutter-test@1:
+        inputs:
+        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+        - additional_params: "--dart-define=FIREBASE_ENABLED=false"
+    - script@1:
+        title: Configure iOS Google Maps secret
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            cd "$BITRISE_SOURCE_DIR/$BITRISE_FLUTTER_PROJECT_LOCATION"
+
+            if [ -z "${GMS_API_KEY:-}" ]; then
+              echo "Missing Bitrise Secret: GMS_API_KEY"
+              exit 1
+            fi
+
+            cat > ios/Flutter/Secrets.xcconfig <<EOF
+            GMS_API_KEY = ${GMS_API_KEY}
+            EOF
+
+            echo "Wrote ios/Flutter/Secrets.xcconfig for Bitrise build"
+    - script@1:
+        title: List installed provisioning profiles
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+            echo "=== Installed profiles ==="
+            ls -la "$PROFILES_DIR" 2>/dev/null || echo "No profiles directory found"
+            for f in "$PROFILES_DIR"/*.mobileprovision; do
+              [ -f "$f" ] || continue
+              echo "---"
+              echo "File: $f"
+              security cms -D -i "$f" 2>/dev/null | grep -A1 "<key>Name</key>" | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/'
+            done
+    - script@1:
+        title: Build iOS IPA
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+            cd "$BITRISE_SOURCE_DIR/$BITRISE_FLUTTER_PROJECT_LOCATION"
+
+            IOS_BUILD_NUMBER="${BITRISE_BUILD_NUMBER:-14}"
+            echo "Building iOS IPA with build number: ${IOS_BUILD_NUMBER}"
+
+            flutter build ipa \
+              --release \
+              --build-number="${IOS_BUILD_NUMBER}" \
+              --export-options-plist=ios/ExportOptions.plist
+    - script@1:
+        title: Export generated IPA path
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            IPA_PATH="$(find "$BITRISE_SOURCE_DIR/$BITRISE_FLUTTER_PROJECT_LOCATION/build/ios/ipa" -maxdepth 1 -type f -name "*.ipa" | head -n 1)"
+
+            if [ -z "${IPA_PATH}" ]; then
+              echo "No IPA found under $BITRISE_SOURCE_DIR/$BITRISE_FLUTTER_PROJECT_LOCATION/build/ios/ipa"
+              exit 1
+            fi
+
+            echo "Using IPA: ${IPA_PATH}"
+            envman add --key BITRISE_IPA_PATH --value "${IPA_PATH}"
+    - deploy-to-itunesconnect-application-loader@2:
+        inputs:
+        - itunescon_user: "$APPLE_ID"
+        - password: "$APP_SPECIFIC_PASSWORD"
+        - ipa_path: "$BITRISE_IPA_PATH"
+    - deploy-to-bitrise-io@2: {}
+    triggers:
+      push:
+      - branch: master
+
+meta:
+  bitrise.io:
+    stack: osx-xcode-26.4.x
+    machine_type_id: g2.mac.large
+
+app:
+  envs:
+  - BITRISE_FLUTTER_PROJECT_LOCATION: "."
+    opts:
+      is_expand: false

@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../firebase_options.dart';
 import '../models/app_state.dart';
+import 'flutter_test_mode_io.dart'
+    if (dart.library.html) 'flutter_test_mode_web.dart';
 
 class RemoteSyncService {
   bool _initialized = false;
@@ -19,7 +21,14 @@ class RemoteSyncService {
     if (_initialized) return;
     _initialized = true;
 
-    const enabled = bool.fromEnvironment('FIREBASE_ENABLED', defaultValue: false);
+    // `flutter test` sets FLUTTER_TEST; Firebase plugins can hang without native
+    // mocks, so skip remote entirely in that harness.
+    if (runningInFlutterTest) {
+      _enabled = false;
+      return;
+    }
+
+    const enabled = bool.fromEnvironment('FIREBASE_ENABLED', defaultValue: true);
     if (!enabled) {
       _enabled = false;
       return;
@@ -69,6 +78,9 @@ class RemoteSyncService {
             displayName: data['displayName'] as String? ?? 'Unknown',
             familyCode: data['familyCode'] as String? ?? '',
             bestSessionScore: data['bestSessionScore'] as int? ?? 0,
+            bestDailyPulseScore: data['bestDailyPulseScore'] as int? ?? 0,
+            bestWorldAtlasScore: data['bestWorldAtlasScore'] as int? ?? 0,
+            bestLandmarkLockScore: data['bestLandmarkLockScore'] as int? ?? 0,
             totalScore: data['totalScore'] as int? ?? 0,
             missionsPlayed: data['missionsPlayed'] as int? ?? 0,
             roundsPlayed: data['roundsPlayed'] as int? ?? 0,
@@ -95,6 +107,12 @@ class RemoteSyncService {
       'displayName': trimmedName,
       'familyCode': normalizedCode,
       'bestSessionScore': snapshot.bestSessionScore,
+      'bestDailyPulseScore':
+          snapshot.bestSessionScoreForMode(GameMode.dailyPulse),
+      'bestWorldAtlasScore':
+          snapshot.bestSessionScoreForMode(GameMode.worldAtlas),
+      'bestLandmarkLockScore':
+          snapshot.bestSessionScoreForMode(GameMode.landmarkLock),
       'totalScore': snapshot.totalScore,
       'missionsPlayed': snapshot.totalSessions,
       'roundsPlayed': snapshot.totalRounds,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/app_state.dart';
@@ -7,6 +9,7 @@ import '../screens/leaderboard_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/social_screen.dart';
+import '../screens/startup_splash_screen.dart';
 import '../screens/vault_screen.dart';
 import '../widgets/kugla_shell.dart';
 import 'local_app_store.dart';
@@ -22,7 +25,38 @@ class KuglaApp extends StatelessWidget {
       title: 'Kugla',
       debugShowCheckedModeBanner: false,
       theme: buildKuglaTheme(),
-      home: const AppShell(),
+      home: const _SplashToAppShell(),
+    );
+  }
+}
+
+class _SplashToAppShell extends StatefulWidget {
+  const _SplashToAppShell();
+
+  @override
+  State<_SplashToAppShell> createState() => _SplashToAppShellState();
+}
+
+class _SplashToAppShellState extends State<_SplashToAppShell> {
+  bool _showApp = false;
+
+  void _onSplashFinished() {
+    if (!mounted) return;
+    setState(() => _showApp = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 380),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: _showApp
+          ? const AppShell(key: ValueKey('app_shell'))
+          : StartupSplashScreen(
+              key: const ValueKey('splash_video'),
+              onVideoComplete: _onSplashFinished,
+            ),
     );
   }
 }
@@ -50,23 +84,36 @@ class _AppShellState extends State<AppShell> {
   Future<void> _load() async {
     await _remote.initialize();
     final snapshot = await _store.load();
-    if (_remote.isEnabled) {
-      await _remote.syncProfile(settings: snapshot.settings, snapshot: snapshot);
-    }
+    final firstLaunch = !await _store.hasSeenOnboarding();
     if (!mounted) return;
+    // Paint shell + tabs before remote sync — avoids a stuck await leaving a
+    // blank intermediate state on slow / flaky Firebase on device.
     setState(() => _snapshot = snapshot);
+    if (_remote.isEnabled) {
+      unawaited(_remote.syncProfile(
+          settings: snapshot.settings, snapshot: snapshot));
+    }
+    if (firstLaunch) {
+      await _store.markOnboardingSeen();
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _openOnboarding(firstLaunch: true));
+    }
   }
 
   void _setIndex(int index) {
     setState(() => _selectedIndex = index);
   }
 
-  Future<void> _openGame() async {
+  Future<void> _openGame(GameMode mode) async {
     final snapshot = _snapshot;
     if (snapshot == null) return;
     final session = await Navigator.of(context).push<MissionSession>(
       MaterialPageRoute<MissionSession>(
-        builder: (_) => GameScreen(settings: snapshot.settings),
+        builder: (_) => GameScreen(
+          settings: snapshot.settings,
+          gameMode: mode,
+          recentLocationIds: snapshot.seenLocationIds(),
+        ),
       ),
     );
     if (!mounted || session == null) return;
@@ -81,35 +128,43 @@ class _AppShellState extends State<AppShell> {
     if (!mounted) return;
     setState(() {
       _snapshot = updated;
-      _selectedIndex = 1;
+      _selectedIndex = 2;
     });
   }
 
-  void _openOnboarding() {
+  void _openOnboarding({bool firstLaunch = false}) {
+    final snapshot = _snapshot;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => OnboardingScreen(
+          showProfileSetup: firstLaunch,
+          initialSettings: snapshot?.settings ?? const AppSettings.defaults(),
+          onProfileSaved: firstLaunch
+              ? (settings) async {
+                  if (snapshot == null) return;
+                  final updated = await _store.saveSettings(snapshot, settings);
+                  if (!mounted) return;
+                  setState(() => _snapshot = updated);
+                }
+              : null,
+        ),
+      ),
     );
   }
 
   Future<void> _openProfile() async {
     final snapshot = _snapshot;
     if (snapshot == null) return;
-    final settings = await Navigator.of(context).push<AppSettings>(
-      MaterialPageRoute<AppSettings>(
+    final updated = await Navigator.of(context).push<AppSnapshot>(
+      MaterialPageRoute<AppSnapshot>(
         builder: (_) => ProfileSettingsScreen(
           snapshot: snapshot,
-          onSave: (next) async => _store.saveSettings(snapshot, next),
+          onSave: (next) => _store.saveSettings(snapshot, next),
         ),
       ),
     );
-    if (!mounted || settings == null) return;
-    final updated = snapshot.copyWith(settings: settings);
-    if (_remote.isEnabled) {
-      await _remote.syncProfile(settings: settings, snapshot: updated);
-    }
-    setState(() {
-      _snapshot = updated;
-    });
+    if (!mounted || updated == null) return;
+    setState(() => _snapshot = updated);
   }
 
   @override
@@ -117,7 +172,18 @@ class _AppShellState extends State<AppShell> {
     final snapshot = _snapshot;
     if (snapshot == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [KuglaColors.midnight, KuglaColors.deepSpace],
+            ),
+          ),
+          child: Center(
+            child: CircularProgressIndicator(color: KuglaColors.cyan),
+          ),
+        ),
       );
     }
 
@@ -128,15 +194,14 @@ class _AppShellState extends State<AppShell> {
           snapshot: snapshot,
           onStartMission: _openGame,
           onOpenVault: () => _setIndex(3),
-          onOpenOnboarding: _openOnboarding,
-          onOpenRecords: () => _setIndex(1),
         ),
       ),
       _ShellDestination(
         title: 'MISSION RECORDS',
         screen: LeaderboardScreen(
           snapshot: snapshot,
-          remoteLeaderboard: _remote.watchLeaderboard(snapshot.settings.familyCode),
+          remoteLeaderboard:
+              _remote.watchLeaderboard(snapshot.settings.familyCode),
           remoteEnabled: _remote.isEnabled,
         ),
       ),
@@ -158,14 +223,10 @@ class _AppShellState extends State<AppShell> {
       onNavTap: _setIndex,
       onOpenProfile: _openProfile,
       onOpenOnboarding: _openOnboarding,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        child: KeyedSubtree(
-          key: ValueKey(_selectedIndex),
-          child: destination.screen,
-        ),
+      avatarPath: snapshot.settings.avatarPath,
+      child: KeyedSubtree(
+        key: ValueKey(_selectedIndex),
+        child: destination.screen,
       ),
     );
   }

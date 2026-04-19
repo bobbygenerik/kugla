@@ -47,4 +47,3 @@ android/local.properties
 ios/Flutter/Secrets.xcconfig
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
-lib/firebase_options.dart

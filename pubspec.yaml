@@ -1,7 +1,7 @@
 name: kugla
 description: A GeoGuessr-style MVP in Flutter.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.5+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -9,13 +9,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_google_street_view:
+    path: third_party/packages/flutter_google_street_view
   google_maps_flutter: ^2.5.3
-  flutter_google_street_view: ^1.0.2
+  # Direct import in main.dart for Android map embedding / renderer init.
+  google_maps_flutter_android: ^2.19.0
+  google_maps_flutter_platform_interface: ^2.15.0
   cupertino_icons: ^1.0.2
   shared_preferences: ^2.5.3
   firebase_core: ^3.13.1
   firebase_auth: ^5.5.4
   cloud_firestore: ^5.6.8
+  image_picker: ^1.0.7
+  google_fonts: ^6.2.1
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:
@@ -23,11 +30,28 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.14.3
 
+dependency_overrides:
+  street_view_platform_interface:
+    path: third_party/packages/street_view_platform_interface
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/bg/map_parchment.png
+    - assets/splash/splash_reveal.mp4
 
+# Icons: rectangular master assets/icon/kugla_app_icon_source_rect.png → square:
+#   python3 tools/pack_square_app_icon.py && dart run flutter_launcher_icons
+# Procedural variant: python3 tools/build_app_icon.py && dart run flutter_launcher_icons.
+# Android adaptive: foreground kugla_app_icon_foreground.png + adaptive_icon_background.
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icon/kugla_app_icon.png
+  image_path: assets/icon/kugla_app_icon_ios.png
+  image_path_android: assets/icon/kugla_app_icon_ios.png
+  image_path_ios: assets/icon/kugla_app_icon_ios.png
+  remove_alpha_ios: true
   min_sdk_android: 21
+  adaptive_icon_background: "#0C1E28"
+  adaptive_icon_foreground: assets/icon/kugla_app_icon_foreground.png
+  adaptive_icon_foreground_inset: 0
